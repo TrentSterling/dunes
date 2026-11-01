@@ -1,0 +1,511 @@
+{
+  "units": "meters",
+  "coordinates": "glTF: +X right, +Y up, -Z forward",
+  "name": "Yellow sandrail",
+  "mass_kg": 1089,
+  "wheelbase_m": 3.37,
+  "inertia_box": {
+    "height": 1.3,
+    "length": 4.7,
+    "width": 2.2
+  },
+  "bump_m": 0.24,
+  "droop_m": 0.28,
+  "engine_torque_nm": 1144,
+  "wheels": [
+    {
+      "name": "FL",
+      "node": "Wheel_FL",
+      "center": [
+        -1.06,
+        0.37,
+        -1.82
+      ],
+      "radius": 0.37,
+      "width": 0.26,
+      "steer": true,
+      "drive": false,
+      "rest_length": 0.52,
+      "travel": 0.52
+    },
+    {
+      "name": "FR",
+      "node": "Wheel_FR",
+      "center": [
+        1.06,
+        0.37,
+        -1.82
+      ],
+      "radius": 0.37,
+      "width": 0.26,
+      "steer": true,
+      "drive": false,
+      "rest_length": 0.52,
+      "travel": 0.52
+    },
+    {
+      "name": "RL",
+      "node": "Wheel_RL",
+      "center": [
+        -1.04,
+        0.47,
+        1.55
+      ],
+      "radius": 0.47,
+      "width": 0.5,
+      "steer": false,
+      "drive": true,
+      "rest_length": 0.52,
+      "travel": 0.52
+    },
+    {
+      "name": "RR",
+      "node": "Wheel_RR",
+      "center": [
+        1.04,
+        0.47,
+        1.55
+      ],
+      "radius": 0.47,
+      "width": 0.5,
+      "steer": false,
+      "drive": true,
+      "rest_length": 0.52,
+      "travel": 0.52
+    }
+  ],
+  "links": [
+    {
+      "node": "Link_FL_Lower_0",
+      "wheel": "FL",
+      "a": [
+        -0.2,
+        0.4,
+        -1.6
+      ],
+      "b": [
+        -0.93,
+        0.33,
+        -1.82
+      ]
+    },
+    {
+      "node": "Link_FL_Lower_2",
+      "wheel": "FL",
+      "a": [
+        -0.2,
+        0.4,
+        -2.02
+      ],
+      "b": [
+        -0.93,
+        0.33,
+        -1.82
+      ]
+    },
+    {
+      "node": "Link_FL_Upper_0",
+      "wheel": "FL",
+      "a": [
+        -0.22,
+        0.62,
+        -1.6
+      ],
+      "b": [
+        -0.91,
+        0.57,
+        -1.82
+      ]
+    },
+    {
+      "node": "Link_FL_Upper_2",
+      "wheel": "FL",
+      "a": [
+        -0.22,
+        0.62,
+        -2.02
+      ],
+      "b": [
+        -0.91,
+        0.57,
+        -1.82
+      ]
+    },
+    {
+      "node": "TieRod_FL",
+      "wheel": "FL",
+      "a": [
+        -0.2,
+        0.5,
+        -1.64
+      ],
+      "b": [
+        -0.92,
+        0.46,
+        -1.66
+      ]
+    },
+    {
+      "node": "Link_RL_Lower_0",
+      "wheel": "RL",
+      "a": [
+        -0.48,
+        0.45,
+        0.6
+      ],
+      "b": [
+        -0.8,
+        0.45,
+        1.55
+      ]
+    },
+    {
+      "node": "Link_RL_Lower_2",
+      "wheel": "RL",
+      "a": [
+        -0.72,
+        0.45,
+        0.58
+      ],
+      "b": [
+        -0.8,
+        0.45,
+        1.55
+      ]
+    },
+    {
+      "node": "Link_RL_Upper_0",
+      "wheel": "RL",
+      "a": [
+        -0.3,
+        0.7,
+        1.62
+      ],
+      "b": [
+        -0.8,
+        0.68,
+        1.58
+      ]
+    },
+    {
+      "node": "Halfshaft_RL",
+      "wheel": "RL",
+      "a": [
+        -0.2,
+        0.47,
+        1.55
+      ],
+      "b": [
+        -0.82,
+        0.47,
+        1.55
+      ]
+    },
+    {
+      "node": "Link_FR_Lower_0",
+      "wheel": "FR",
+      "a": [
+        0.2,
+        0.4,
+        -1.6
+      ],
+      "b": [
+        0.93,
+        0.33,
+        -1.82
+      ]
+    },
+    {
+      "node": "Link_FR_Lower_2",
+      "wheel": "FR",
+      "a": [
+        0.2,
+        0.4,
+        -2.02
+      ],
+      "b": [
+        0.93,
+        0.33,
+        -1.82
+      ]
+    },
+    {
+      "node": "Link_FR_Upper_0",
+      "wheel": "FR",
+      "a": [
+        0.22,
+        0.62,
+        -1.6
+      ],
+      "b": [
+        0.91,
+        0.57,
+        -1.82
+      ]
+    },
+    {
+      "node": "Link_FR_Upper_2",
+      "wheel": "FR",
+      "a": [
+        0.22,
+        0.62,
+        -2.02
+      ],
+      "b": [
+        0.91,
+        0.57,
+        -1.82
+      ]
+    },
+    {
+      "node": "TieRod_FR",
+      "wheel": "FR",
+      "a": [
+        0.2,
+        0.5,
+        -1.64
+      ],
+      "b": [
+        0.92,
+        0.46,
+        -1.66
+      ]
+    },
+    {
+      "node": "Link_RR_Lower_0",
+      "wheel": "RR",
+      "a": [
+        0.48,
+        0.45,
+        0.6
+      ],
+      "b": [
+        0.8,
+        0.45,
+        1.55
+      ]
+    },
+    {
+      "node": "Link_RR_Lower_2",
+      "wheel": "RR",
+      "a": [
+        0.72,
+        0.45,
+        0.58
+      ],
+      "b": [
+        0.8,
+        0.45,
+        1.55
+      ]
+    },
+    {
+      "node": "Link_RR_Upper_0",
+      "wheel": "RR",
+      "a": [
+        0.3,
+        0.7,
+        1.62
+      ],
+      "b": [
+        0.8,
+        0.68,
+        1.58
+      ]
+    },
+    {
+      "node": "Halfshaft_RR",
+      "wheel": "RR",
+      "a": [
+        0.2,
+        0.47,
+        1.55
+      ],
+      "b": [
+        0.82,
+        0.47,
+        1.55
+      ]
+    }
+  ],
+  "shocks": [
+    {
+      "node": "Shock_FL",
+      "wheel": "FL",
+      "a": [
+        -0.36,
+        1.0,
+        -1.66
+      ],
+      "b": [
+        -0.72,
+        0.38,
+        -1.8
+      ]
+    },
+    {
+      "node": "Shock_FL_2",
+      "wheel": "FL",
+      "a": [
+        -0.36,
+        1.0,
+        -1.8
+      ],
+      "b": [
+        -0.72,
+        0.38,
+        -1.92
+      ]
+    },
+    {
+      "node": "Shock_RL",
+      "wheel": "RL",
+      "a": [
+        -0.66,
+        1.36,
+        1.3
+      ],
+      "b": [
+        -0.78,
+        0.52,
+        1.44
+      ]
+    },
+    {
+      "node": "Shock_RL_2",
+      "wheel": "RL",
+      "a": [
+        -0.66,
+        1.36,
+        1.46
+      ],
+      "b": [
+        -0.78,
+        0.52,
+        1.62
+      ]
+    },
+    {
+      "node": "Shock_FR",
+      "wheel": "FR",
+      "a": [
+        0.36,
+        1.0,
+        -1.66
+      ],
+      "b": [
+        0.72,
+        0.38,
+        -1.8
+      ]
+    },
+    {
+      "node": "Shock_FR_2",
+      "wheel": "FR",
+      "a": [
+        0.36,
+        1.0,
+        -1.8
+      ],
+      "b": [
+        0.72,
+        0.38,
+        -1.92
+      ]
+    },
+    {
+      "node": "Shock_RR",
+      "wheel": "RR",
+      "a": [
+        0.66,
+        1.36,
+        1.3
+      ],
+      "b": [
+        0.78,
+        0.52,
+        1.44
+      ]
+    },
+    {
+      "node": "Shock_RR_2",
+      "wheel": "RR",
+      "a": [
+        0.66,
+        1.36,
+        1.46
+      ],
+      "b": [
+        0.78,
+        0.52,
+        1.62
+      ]
+    }
+  ],
+  "head_lamps": [
+    [
+      -0.47,
+      1.08,
+      -1.085
+    ],
+    [
+      0.47,
+      1.08,
+      -1.085
+    ]
+  ],
+  "head_lamp_size": [
+    0.085,
+    0.045
+  ],
+  "head_tint": [
+    1.0,
+    0.72,
+    0.3
+  ],
+  "light_bar": {
+    "y": 1.6,
+    "z": -0.4,
+    "width": 0.96
+  },
+  "tail_lamps": [
+    [
+      -0.7,
+      1.02,
+      2.57
+    ],
+    [
+      0.7,
+      1.02,
+      2.57
+    ]
+  ],
+  "triangles": 113932,
+  "gauges": [
+    {
+      "node": "Needle_Tach",
+      "source": "rpm",
+      "max": 8000
+    },
+    {
+      "node": "Needle_Speed",
+      "source": "mph",
+      "max": 140
+    }
+  ],
+  "driver_eye": [
+    -0.33,
+    1.26,
+    -0.14
+  ],
+  "center_of_mass": [
+    0.0,
+    0.62,
+    0.3
+  ],
+  "top_speed_ms": 68.5,
+  "cda": 0.9,
+  "wheelie_rad": 0.34,
+  "godot_note": "engine_torque_nm, top_speed_ms, cda and wheelie_rad are set for the Godot game (1,000 hp, 150 mph, front end up on full throttle); the browser version keeps its own file",
+  "downforce_cla": 1.7
+}

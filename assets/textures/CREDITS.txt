@@ -1,0 +1,7 @@
+Sand textures from Poly Haven (polyhaven.com), CC0:
+- Sand 03 (fine grain)
+- Aerial Beach 01 by Rob Tuytel (wind-worked sand)
+
+Everything else in assets/ (the sandrail models, the driver's arms and the engine
+sound recordings) was made by the author of this game and is released into the
+public domain with the rest of the game (see UNLICENSE).

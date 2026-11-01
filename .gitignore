@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+
+# saved tire tracks and other runtime/player data written by the server
+track-data/
+
+# backups, scratch and test output
+assets/_backup_*/
+*.bak
+*.before-*
+*.log
+logs/
+scratch/
+out-*/
+*.zip
+
+# Blender working files (rebuild them with blender/trx_pro/build.py)
+*.blend
+*.blend1
+blender/trx_pro/ref/
+
+# environment / secrets
+.env
+.env.*
+
+# OS and editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Python bytecode
+__pycache__/
+*.pyc
