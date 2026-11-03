@@ -35,7 +35,7 @@
     "mobile.png"
   ],
   "runtime": {
-    "triangles": 155456,
+    "triangles": 170048,
     "nodes": [
       "Canopy",
       "Cockpit",
@@ -77,12 +77,16 @@
       "Wing_R"
     ],
     "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
-    "drawCalls": 392,
+    "drawCalls": 389,
     "dimensions": {
       "length": 15.429999828338623,
       "span": 9.808784484863281,
       "height": 4.8035982847213745
     }
+  },
+  "airframeShellTopology": {
+    "boundaryEdges": 0,
+    "nonManifoldEdges": 0
   },
   "stowedGearBounds": {
     "GearMain_L": {
@@ -111,18 +115,18 @@
     },
     "GearNose": {
       "min": [
-        -0.17000000178813934,
-        1.5081047339684186,
-        -3.572297231941034
+        -0.43705295593574334,
+        1.5625775290350488,
+        -2.7758787796647484
       ],
       "max": [
-        0.17000000178813934,
-        2.158146539103722,
-        -1.7937828518522942
+        0.781080533497248,
+        2.54403067211735,
+        -1.360154614971894
       ]
     }
   },
-  "glbSha256": "ce7e5dcf006586d0e081af2bb3fc52e2696188e7196379e7710711eae1a0e971",
+  "glbSha256": "95e1ee31597942c70ceb7240d74ca91957888aa01b8cd3ae618c3da693c333e2",
   "passed": true,
-  "verifiedUtc": "2026-11-03T12:12:46.657Z"
+  "verifiedUtc": "2026-11-03T12:47:55.427Z"
 }

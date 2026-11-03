@@ -44,6 +44,26 @@ def add(obj, group='Fuselage'):
     return obj
 
 
+def boolean(target, cutter, operation):
+    """Exact surface intersection, avoiding stair-step face-centroid cutouts."""
+    bpy.context.view_layer.objects.active=target
+    modifier=target.modifiers.new('Continuous_'+operation,'BOOLEAN')
+    modifier.operation=operation; modifier.solver='EXACT'; modifier.object=cutter
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+    for items in GROUPS.values():
+        if cutter in items: items.remove(cutter)
+    bpy.data.objects.remove(cutter,do_unlink=True)
+    return target
+
+
+def offset_group(name, node, offset):
+    vector=Vector(offset)
+    for obj in GROUPS.get(name,[]): obj.location+=vector
+    # Bake object positions before assemble converts vertices into pivot space.
+    for obj in GROUPS.get(name,[]): apply_transform(obj)
+    node.location+=vector
+
+
 def group(name, origin=(0, 0, 0), axis=None, angle=0, explode=(0, 0, 0)):
     node = bpy.data.objects.new(name, None)
     bpy.context.scene.collection.objects.link(node)

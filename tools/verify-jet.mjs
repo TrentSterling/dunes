@@ -30,6 +30,8 @@ try {
   assert.ok(report.runtime.nodes.includes('GearMain_L'));
   assert.ok(report.runtime.nodes.includes('Flaperon_R'));
   assert.ok(report.runtime.triangles>10000);
+  report.airframeShellTopology=await page.evaluate(()=>window.__jetViewer.metadata.airframeShellTopology);
+  assert.deepEqual(report.airframeShellTopology,{boundaryEdges:0,nonManifoldEdges:0});
   report.checks.push('GLB loads with the complete aircraft and named articulated nodes');
   await settle();await shot('hero');
   for(const view of ['top','side','front','rear','cockpit']) {

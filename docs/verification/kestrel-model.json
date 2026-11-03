@@ -1,8 +1,12 @@
 {
   "name": "Kestrel 01",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "units": "meters",
-  "triangles": 155456,
+  "triangles": 170048,
+  "airframeShellTopology": {
+    "boundaryEdges": 0,
+    "nonManifoldEdges": 0
+  },
   "meshGroups": 38,
   "materials": 27,
   "nodes": 78,
@@ -24,9 +28,9 @@
     "height": 4.8035982847213745
   },
   "pilotEyeGltf": [
-    0,
-    3.08,
-    -3.34
+    0.0,
+    2.9600000381469727,
+    -2.739999771118164
   ],
   "articulated": [
     "Flaperon_L",
@@ -58,14 +62,14 @@
     "NozzlePetal_14",
     "NozzlePetal_15"
   ],
-  "glbBytes": 4299944,
-  "glbSha256": "ce7e5dcf006586d0e081af2bb3fc52e2696188e7196379e7710711eae1a0e971",
+  "glbBytes": 4605916,
+  "glbSha256": "95e1ee31597942c70ceb7240d74ca91957888aa01b8cd3ae618c3da693c333e2",
   "sourceSha256": {
-    "build.py": "636e0a46a448ca33b6423d031f4f9ec1956eef7cc892f50903f2f62fe5bc89c6",
-    "geometry.py": "049614e6123b5ca4645aa3282c24ab581759f3f6a332efab8b176fa66acdb01c",
-    "jet_spec.py": "4135e62687ec0ede1fa626aad2b94b2585190ccdcd1791df506276bb377c0f15",
-    "parts.py": "392019bdcd561ce4e2b7dd1c4a16b5e88b791f2cfb18bdc926372a2862190ea3",
-    "render.py": "7a49d2be54b635bf2ef24db8e69d1ecf9ac0239651e6a2e7ed530510bf7dfe7a"
+    "build.py": "1d179daec5fdf4cd79729e87eb8c25a2bea39d07b9376bdd77a7eb41c0456770",
+    "geometry.py": "e1875d428bf2090b08aab13e98c79a66c10c1bfa65416854832b5e6ca9963a1d",
+    "jet_spec.py": "40000eb9fa6cee8fc9861d9a8c4154da96f99fc10f6d613d0c905592dd36e520",
+    "parts.py": "25ec5c0cecce26429d8d183f574d0b82dcb207057187a8a3d92e33af7d5ae7e6",
+    "render.py": "178ca75f71e1dd3d5b1fa2869bc807a1eff98014cde20b37b39ffafcac57092e"
   },
   "source": "Original Dunes aircraft geometry, Glamis generic modeling primitives (Unlicense)",
   "reference": "https://viperoneone.com/notes/jets/ (explanatory guidance only; no code or assets copied)"

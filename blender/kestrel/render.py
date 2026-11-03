@@ -31,7 +31,8 @@ for name,loc,energy,size,color in [('Key',(4,6,14),2400,9,(1,.91,.78)),('Fill',(
     obj.rotation_euler=(Vector((0,0,2))-obj.location).to_track_quat('-Z','Y').to_euler()
 data=bpy.data.cameras.new('Inspection_camera'); camera=bpy.data.objects.new('Inspection_camera',data)
 scene.collection.objects.link(camera); scene.camera=camera; data.lens=48
-views={'hero':((13,20,10),(0,.3,2.0),False),'side':((23,0,4),(0,0,2.2),True),
+views={'hero':((13,20,10),(0,.3,2.0),False),'side':((23,0,2.2),(0,0,2.2),True),
+       'low':((-13,16,3.1),(0,.2,2.0),False),
        'top':((0,0,30),(0,0,0),True),'rear':((11,-19,8),(0,-1,2),False),
        'cockpit':((2.4,5.5,5),(0,3.5,2.6),False)}
 for name in opt.views.split(','):

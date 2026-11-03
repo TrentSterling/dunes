@@ -6,6 +6,7 @@ import math
 from pathlib import Path
 import sys
 import bpy
+import bmesh
 from mathutils import Vector
 
 HERE=Path(__file__).resolve().parent
@@ -24,14 +25,14 @@ def main():
     bpy.context.scene.unit_settings.system='METRIC'
     bpy.context.scene.unit_settings.scale_length=1
     g.M.update({
-        'body':g.mat('Airframe ceramic gray',S.PALETTE['airframe'],metal=.32,rough=.37,clearcoat=.18,clearcoat_rough=.25),
+        'body':g.mat('Airframe ceramic gray',S.PALETTE['airframe'],metal=.15,rough=.48,clearcoat=.10,clearcoat_rough=.32),
         'under':g.mat('Underside light gray',S.PALETTE['underside'],metal=.2,rough=.44),
         'nose':g.mat('Radome graphite',S.PALETTE['nose'],metal=.08,rough=.53),
         'panels':g.mat('Service panels',S.PALETTE['panels'],metal=.27,rough=.41),
         'edge':g.mat('Edge charcoal',S.PALETTE['edge'],metal=.35,rough=.35),
         'orange':g.mat('Dunes vermilion',S.PALETTE['orange'],metal=.15,rough=.32,clearcoat=.25),
         'white':g.mat('Ceramic white',S.PALETTE['white'],metal=.08,rough=.37),
-        'seam':g.mat('Recessed seam','#303b40',metal=.1,rough=.65),
+        'seam':g.mat('Recessed seam','#46545b',metal=.1,rough=.65),
         'ink':g.mat('Stencil ink',S.PALETTE['ink'],rough=.65),
         'steel':g.mat('Machined steel','#a7b3b9',metal=.86,rough=.27),
         'titanium':g.mat('Heat treated titanium','#686775',metal=.88,rough=.39),
@@ -43,7 +44,7 @@ def main():
         'seat':g.mat('Seat woven olive','#535c49',rough=.92),
         'harness':g.mat('Harness webbing','#a89977',rough=.84),
         'yellow':g.mat('Rescue yellow','#e3b632',rough=.52),
-        'glass':g.mat('Canopy coated glass','#bfc9c4',rough=.085,metal=.08,transmission=.72,alpha=.32,ior=1.46,double_sided=True),
+        'glass':g.mat('Canopy coated glass','#9aaea9',rough=.065,metal=.08,transmission=.62,alpha=.46,ior=1.46,double_sided=True),
         'hudglass':g.mat('HUD combiner','#6fb09c',rough=.1,transmission=.6,alpha=.32,double_sided=True),
         'screen':g.mat('MFD black glass','#102925',rough=.18,emit='#0b2922',emit_strength=.3),
         'phosphor':g.mat('Display phosphor','#9bbd9e',rough=.4,emit='#7fc8a1',emit_strength=.65),
@@ -64,9 +65,20 @@ def main():
         fn(); print('[kestrel]',fn.__name__,flush=True)
     for fn in [parts.build_wings,parts.build_fin,parts.build_cockpit,parts.build_gear,parts.build_engine]:
         fn(nodes); print('[kestrel]',fn.__name__,flush=True)
+    shell=bpy.data.objects['Airframe_skin']
+    bm=bmesh.new(); bm.from_mesh(shell.data)
+    topology={'boundaryEdges':sum(e.is_boundary for e in bm.edges),
+              'nonManifoldEdges':sum(not e.is_manifold for e in bm.edges)}
+    bm.free()
+    if topology['nonManifoldEdges']:
+        raise RuntimeError('Airframe shell has open or non-manifold intersections: '+str(topology))
+    for name,node in nodes.items():
+        if name in ['Canopy','Cockpit']: g.offset_group(name,node,S.COCKPIT_OFFSET)
+        elif name.startswith(('Wing_','Flaperon_','TipPod_')): g.offset_group(name,node,S.WING_OFFSET)
+        elif name in ['GearNose','GearDoorNose']: g.offset_group(name,node,(0,S.INTAKE_OFFSET_Y,0))
     for name,node in nodes.items(): g.assemble(name,node)
     eye=bpy.data.objects.new('PilotEye',None); bpy.context.scene.collection.objects.link(eye)
-    eye.parent=g.ROOT; eye.location=S.DRIVER_EYE
+    eye.parent=g.ROOT; eye.location=Vector(S.DRIVER_EYE)+Vector(S.COCKPIT_OFFSET)
     bpy.context.view_layer.update()
     meshes=[o for o in bpy.data.objects if o.type=='MESH']
     points=[o.matrix_world@Vector(c) for o in meshes for c in o.bound_box]
@@ -89,11 +101,12 @@ def main():
     bpy.ops.export_scene.gltf(filepath=str(glb),export_format='GLB',export_yup=True,
         export_apply=True,export_cameras=False,export_lights=False,export_animations=False,
         export_extras=True,export_materials='EXPORT',export_image_format='AUTO')
-    report={'name':S.NAME,'version':'0.2.0','units':'meters','triangles':triangles,
+    report={'name':S.NAME,'version':'0.2.1','units':'meters','triangles':triangles,
+        'airframeShellTopology':topology,
         'meshGroups':len(meshes),'materials':len(bpy.data.materials),'nodes':len(bpy.data.objects),
         'boundsBlender':{'min':list(low),'max':list(high)},
         'dimensions':{'length':high.y-low.y,'span':high.x-low.x,'height':high.z-low.z},
-        'pilotEyeGltf':[S.DRIVER_EYE[0],S.DRIVER_EYE[2],-S.DRIVER_EYE[1]],
+        'pilotEyeGltf':[eye.location.x,eye.location.z,-eye.location.y],
         'articulated':[n for n in nodes if 'hingeAxis' in nodes[n]],
         'glbBytes':glb.stat().st_size,'glbSha256':hashlib.sha256(glb.read_bytes()).hexdigest(),
         'sourceSha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(HERE.glob('*.py'))},

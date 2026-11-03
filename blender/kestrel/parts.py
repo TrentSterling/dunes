@@ -38,18 +38,6 @@ def conform_wing_text(obj,rows,side):
 
 
 def build_fuselage():
-    def openings(p):
-        x,y,z=p
-        w=g.monotone(S.CANOPY,y,1)*.90
-        if 2.18 < y < 5.08 and z>2.50 and abs(x)<w: return True
-        # Remove the belly inside the scoop. Leaving it here blocks the duct
-        # with the fuselage skin even when the separate intake mesh is hollow.
-        if .45 < y < 4.35:
-            rx=g.lerp_rows(S.INTAKE,y,1)+.015
-            center=g.lerp_rows(S.INTAKE,y,4)
-            rz=g.lerp_rows(S.INTAKE,y,2 if z>=center else 3)+.015
-            return (x/rx)**2+((z-center)/rz)**2 < 1
-        return False
     rows=[]
     for i in range(183):
         y=7.6-(7.6+6.87)*i/182
@@ -58,31 +46,71 @@ def build_fuselage():
     nose=[r for r in rows if r[0]>=5.5]
     body=[nose[-1]]+[r for r in rows if r[0]<5.5]
     g.shell('Radome',nose,72,g.M['nose'])
-    g.shell('Airframe_skin',body,72,g.M['body'],cut=openings)
+    skin=g.shell('Airframe_skin',body,72,g.M['body'])
+    # The outer inlet is welded into the belly. Boolean intersections produce
+    # continuous edges; deleting whole quads produced the visible sawtooth seam.
+    intake=g.shell('Intake_union',S.INTAKE_OUTER,96,g.M['under'],'_Cutters')
+    g.boolean(skin,intake,'UNION')
+    duct=[(y,w-.052,t-.052,b-.052,z) for y,w,t,b,z in S.INTAKE]
+    duct=[(duct[0][0]+.12,*duct[0][1:])]+duct
+    g.boolean(skin,g.shell('Intake_bore',duct,96,g.M['duct'],'_Cutters'),'DIFFERENCE')
+    cockpit=[]
+    for i in range(65):
+        y=2.10+3.04*i/64; w=g.monotone(S.CANOPY,y,1)
+        cockpit.append((y+S.COCKPIT_OFFSET[1],w,2,.40,
+                        g.monotone(S.CANOPY_BASE,y,1)+S.COCKPIT_OFFSET[2]))
+    g.boolean(skin,g.shell('Cockpit_aperture',cockpit,64,g.M['cockpit'],'_Cutters'),'DIFFERENCE')
     # Recessed dorsal hatches and deliberately broken fuselage panel rings.
-    for y in [5.48,1.75,.30,-1.4,-3.3,-4.9,-6.4]:
-        g.curve('Circumferential_panel', [body_surface(y,.85+4.58*i/88,.005) for i in range(89)],.004)
+    for y in [5.48,-1.4,-3.3,-4.9,-6.4]:
+        g.curve('Circumferential_panel', [body_surface(y,.85+4.58*i/88,.003) for i in range(89)],.0025)
     for side in [-1,1]:
         for a in [.95,1.65,2.30]:
-            g.curve('Longitudinal_seam',[body_surface(1.65-7.9*i/55,side*a,.006) for i in range(56)],.0035)
+            g.curve('Longitudinal_seam',[body_surface(1.0-7.3*i/55,side*a,.004) for i in range(56)],.0025)
         # Six separated service fasteners at each of the engine service panels.
         for y in [-1.42,-3.32,-4.92]:
             for a in [.94,1.18,1.42,1.66,1.90,2.14]:
                 p=body_surface(y+.045,side*a,.014)
                 g.add(g.sphere('Flush_fastener',.010,p,g.M['steel'],segs=8,rings=4))
-        # Wing-root extensions: a designed taper blends the forebody into the main wing.
-        vertices=[(side*.48,4.60,2.42),(side*.68,3.20,2.29),(side*1.22,1.30,2.13),
-                  (side*1.62,.55,2.13),(side*.70,-1.1,2.15)]
-        g.plate('Leading_edge_extension',vertices,.058,g.M['body'])
-        g.curve('Strake_edge',vertices[:4],.008,g.M['edge'])
-        # Cockpit sill connects the fuselage skin to the canopy's constant-height rail.
+        # Curved shoulder skins, tangent toward the body and flattened at the
+        # swept edge. They replace the visibly detached triangular flat plate.
+        plan=[(-3.5,1.12,2.13),(-2.7,1.53,2.13),(-.15,1.57,2.15),
+              (1.2,1.16,2.22),(2.7,.76,2.37),(3.9,.47,2.43)]
+        verts=[]; faces=[]; ny=72; nx=16
+        for lower in [False,True]:
+            for j in range(ny+1):
+                y=-3.5+7.4*j/ny
+                rx=g.monotone(S.STATIONS,y,1)
+                outside=g.monotone(plan,y,1); edge_z=g.monotone(plan,y,2)
+                inside=min(rx*.58,outside*.84)
+                center=g.monotone(S.STATIONS,y,4); rt=g.monotone(S.STATIONS,y,2)
+                body_z=center+rt*math.sqrt(1-(inside/rx)**2)-.035
+                for k in range(nx+1):
+                    u=k/nx; x=inside+(outside-inside)*u
+                    z=edge_z+(body_z-edge_z)*(1-u)**2
+                    if lower: z-=.025+.06*math.sin(math.pi*u)
+                    verts.append((side*x,y,z))
+        layer=(ny+1)*(nx+1)
+        for off in [0,layer]:
+            for j in range(ny):
+                for k in range(nx):
+                    a=off+j*(nx+1)+k; faces.append((a,a+1,a+nx+2,a+nx+1))
+        boundary=list(range(nx+1))+[j*(nx+1)+nx for j in range(1,ny+1)]
+        boundary+=list(range(ny*(nx+1)+nx-1,ny*(nx+1)-1,-1))
+        boundary+=[j*(nx+1) for j in range(ny-1,0,-1)]
+        for a,b in zip(boundary,boundary[1:]+boundary[:1]): faces.append((a,b,b+layer,a+layer))
+        g.add(g.mesh('Blended_wing_shoulder',verts,faces,g.M['body']))
+        # Raked canopy sill joins to the actual fuselage section at each station.
         rim=[]
         for i in range(46):
             y=2.16+2.92*i/45; w=g.monotone(S.CANOPY,y,1)
-            rim.append((side*w,y,2.735))
-        g.curve('Canopy_sill',rim,.030,g.M['edge'])
+            rim.append((side*w,y+S.COCKPIT_OFFSET[1],g.monotone(S.CANOPY_BASE,y,1)+S.COCKPIT_OFFSET[2]-.01))
+        g.curve('Canopy_sill',rim,.018,g.M['edge'])
         for a,b in zip(rim,rim[1:]):
-            g.plate('Sill_fillet',[a,b,(b[0]*.88,b[1],2.51),(a[0]*.88,a[1],2.51)],.015,g.M['body'])
+            feet=[]
+            for x,y,z in [b,a]:
+                rx=g.monotone(S.STATIONS,y,1); angle=math.asin(min(.98,abs(x)/rx))
+                feet.append(body_surface(y,side*angle,.003))
+            g.plate('Sill_fillet',[a,b,*feet],.012,g.M['body'])
         # Small dorsal identification panels. Text is real geometry and exports without font files.
         conform_fuselage_text(g.label('DUNES', (side*.625,-3.8,2.42),.16,g.M['white'],right=(0,side,0),up=(0,0,1)),side)
         conform_fuselage_text(g.label('KF-01', (side*.58,4.67,2.39),.11,g.M['white'],right=(0,side,0),up=(0,0,1)),side)
@@ -92,41 +120,41 @@ def build_fuselage():
         for j in range(8):
             y=-2.0-j*.095
             g.curve('Engine_vent',[body_surface(y,side*(.41+k*.006),.009) for k in range(36)],.012,g.M['dark'])
-    g.plate('Dorsal_antenna',[(0,-1.2,2.85),(0,-1.48,3.2),(0,-1.78,3.05),(0,-1.76,2.84)],.033,g.M['edge'])
-    g.between('Pitot_probe',(0,7.58,2.12),(0,7.85,2.12),.009,g.M['steel'],'Sensors')
+    g.plate('Dorsal_antenna',[(0,-1.2,2.81),(0,-1.38,3.04),(0,-1.62,2.96),(0,-1.60,2.80)],.025,g.M['edge'])
+    g.between('Pitot_probe',(0,7.58,1.98),(0,7.85,1.98),.009,g.M['steel'],'Sensors')
 
 
 def build_intake():
-    # Hollow ventral scoop: outer and inner skins, rolled lip, long dark duct, fan at the end.
+    # The exterior belongs to the welded fuselage. This subsystem contains the
+    # separate dark lining, lip, splitter and recessed compressor.
     outer=S.INTAKE
     n=64; verts=[]
-    for inner in (False,True):
+    for inner in (True,):
         for y,rx,rt,rb,z in outer:
             for k in range(n):
-                a=g.TAU*k/n; s=.055 if inner else 0
+                a=g.TAU*k/n; s=.054
                 verts.append(((rx-s)*math.sin(a),y,z+((rt-s if math.cos(a)>=0 else rb-s)*math.cos(a))))
     length=len(outer); layer=length*n; faces=[]
-    for off in (0,layer):
+    for off in (0,):
         for j in range(length-1):
             for k in range(n): faces.append((off+j*n+k,off+j*n+(k+1)%n,off+(j+1)*n+(k+1)%n,off+(j+1)*n+k))
-    for k in range(n): faces.append((k,(k+1)%n,layer+(k+1)%n,layer+k))
-    obj=g.mesh('Intake_shell',verts,faces,g.M['under'])
-    obj.data.materials.append(g.M['duct'])
-    for p in obj.data.polygons:
-        if p.index>=(length-1)*n: p.material_index=1
+    obj=g.mesh('Intake_lining',verts,faces,g.M['duct'])
     g.add(obj,'Intake')
-    lip=[(.535*math.sin(g.TAU*k/80),4.36,1.79+(.175 if math.cos(g.TAU*k/80)>=0 else .345)*math.cos(g.TAU*k/80)) for k in range(81)]
+    dy=S.INTAKE_OFFSET_Y
+    lip=[(.525*math.sin(g.TAU*k/80),4.36+dy,1.79+(.165 if math.cos(g.TAU*k/80)>=0 else .335)*math.cos(g.TAU*k/80)) for k in range(81)]
     g.curve('Rolled_intake_lip',lip,.026,g.M['steel'],'Intake')
-    g.add(g.cylinder('Intake_depth',.53,.035,(0,.50,1.85),(90,0,0),g.M['dark'],segments=64),'Intake')
+    fan=g.cylinder('Intake_depth',.53,.035,(0,.50+dy,1.85),(90,0,0),g.M['dark'],segments=64)
+    fan.scale.y=.68
+    g.add(fan,'Intake')
     for j in range(22):
         a=g.TAU*j/22
         pts=[]
         for r,da in [(.12,0),(.49,.14),(.50,.25),(.14,.28)]:
-            pts.append((r*math.sin(a+da),.54,1.85+r*math.cos(a+da)))
+            pts.append((r*math.sin(a+da),.54+dy,1.85+.68*r*math.cos(a+da)))
         g.plate('Compressor_blade',pts,.006,g.M['titanium'],'Intake',axis=(0,1,0))
-    g.add(g.sphere('Compressor_hub',.13,(0,.57,1.85),g.M['steel'],scale=(1,.6,1)),'Intake')
+    g.add(g.sphere('Compressor_hub',.13,(0,.57+dy,1.85),g.M['steel'],scale=(1,.6,1)),'Intake')
     # Boundary-layer splitter above the inlet mouth.
-    g.plate('Intake_splitter',[(-.47,4.37,2.01),(.47,4.37,2.01),(.58,3.40,2.10),(-.58,3.40,2.10)],.027,g.M['edge'],'Intake')
+    g.plate('Intake_splitter',[(-.47,4.37+dy,2.01),(.47,4.37+dy,2.01),(.58,3.40+dy,2.10),(-.58,3.40+dy,2.10)],.027,g.M['edge'],'Intake')
 
 
 def build_wings(nodes):
@@ -223,7 +251,7 @@ def build_cockpit(nodes):
     g.curve('Ejection_handle',[(-.09,3.25,2.55),(-.10,3.36,2.57),(0,3.39,2.57),(.10,3.36,2.57),(.09,3.25,2.55)],.014,g.M['yellow'],c)
     # Instrument fascia is angled back toward the pilot, with modeled bevels and button rows.
     g.add(g.box('Instrument_panel',(.80,.15,.43),(0,4.19,2.67),rot=(12,0,0),material=g.M['cockpit'],bevel=.035),c)
-    g.add(g.box('Glareshield',(.88,.39,.075),(0,4.19,2.92),material=g.M['dark'],bevel=.045),c)
+    g.add(g.box('Glareshield',(.74,.39,.075),(0,4.19,2.92),material=g.M['dark'],bevel=.045),c)
     for side in [-1,1]:
         x=side*.24
         g.add(g.box('MFD_frame',(.26,.034,.24),(x,4.09,2.70),material=g.M['edge'],bevel=.014),c)
@@ -242,8 +270,8 @@ def build_cockpit(nodes):
         g.between('Dial_needle',(0,4.04,z),(.023,4.04,z+.013),.0025,g.M['white'],c)
     g.add(g.box('HUD_base',(.18,.24,.055),(0,4.26,2.98),material=g.M['edge'],bevel=.02),c)
     for side in [-1,1]:
-        g.between('HUD_support',(side*.10,4.25,2.97),(side*.10,4.40,3.20),.012,g.M['edge'],c)
-    g.plate('HUD_combiner',[(-.14,4.40,3.07),(.14,4.40,3.07),(.13,4.48,3.27),(-.13,4.48,3.27)],.006,g.M['hudglass'],c,axis=(0,1,0))
+        g.between('HUD_support',(side*.10,4.25,2.97),(side*.10,4.40,3.05),.012,g.M['edge'],c)
+    g.plate('HUD_combiner',[(-.14,4.40,2.99),(.14,4.40,2.99),(.13,4.48,3.10),(-.13,4.48,3.10)],.006,g.M['hudglass'],c,axis=(0,1,0))
     g.between('Sidestick',(.31,3.61,2.64),(.31,3.61,2.81),.025,g.M['dark'],c)
     g.add(g.sphere('Stick_grip',.038,(.31,3.61,2.83),g.M['dark'],scale=(1,1,1.6)),c)
     g.between('Throttle',(-.31,3.45,2.65),(-.31,3.47,2.74),.024,g.M['steel'],c)
@@ -255,16 +283,16 @@ def build_cockpit(nodes):
         y=2.10+3.04*j/ny; w=g.monotone(S.CANOPY,y,1); h=g.monotone(S.CANOPY,y,2)
         for k in range(na+1):
             a=math.pi*k/na
-            verts.append((w*math.cos(a),y,2.75+h*math.sin(a)))
+            verts.append((w*math.cos(a),y,g.monotone(S.CANOPY_BASE,y,1)+h*math.sin(a)))
     for j in range(ny):
         for k in range(na):
             a=j*(na+1)+k; faces.append((a,a+1,a+na+2,a+na+1))
     g.add(g.mesh('Canopy_glass',verts,faces,g.M['glass']),'Canopy')
     for side in [-1,1]:
-        g.curve('Canopy_rail',[(side*g.monotone(S.CANOPY,2.1+3.04*j/64,1),2.1+3.04*j/64,2.755) for j in range(65)],.025,g.M['edge'],'Canopy')
-    for y in [2.33,4.91]:
+        g.curve('Canopy_rail',[(side*g.monotone(S.CANOPY,2.1+3.04*j/64,1),2.1+3.04*j/64,g.monotone(S.CANOPY_BASE,2.1+3.04*j/64,1)+.004) for j in range(65)],.016,g.M['edge'],'Canopy')
+    for y in [2.24,4.96]:
         w=g.monotone(S.CANOPY,y,1); h=g.monotone(S.CANOPY,y,2)
-        g.curve('Canopy_bow',[(w*math.cos(math.pi*j/40),y,2.75+h*math.sin(math.pi*j/40)) for j in range(41)],.022,g.M['edge'],'Canopy')
+        g.curve('Canopy_bow',[(w*math.cos(math.pi*j/40),y,g.monotone(S.CANOPY_BASE,y,1)+h*math.sin(math.pi*j/40)) for j in range(41)],.015,g.M['edge'],'Canopy')
     for side in [-1,1]:
         g.between('Canopy_lift_actuator',(side*.35,2.37,2.54),(side*.35,2.42,2.76),.018,g.M['steel'],'Canopy')
 
@@ -313,7 +341,10 @@ def build_gear(nodes):
         for y in [-1.04,-.38]:
             g.between('Door_rib',(side*.79,y,.86),(side*.87,y,1.33),.015,g.M['gear'],door)
     name='GearNose'; pivot=(0,3.46,1.61)
-    nodes[name]=g.group(name,pivot,(1,0,0),-115,explode=(0,1,-.2))
+    # Compound fold into the shoulder bay beside the duct, behind the cockpit.
+    deployed=Vector((0,.42,-1.33)); stowed=Vector((.52,-1.10,.68))
+    axis=deployed.cross(stowed).normalized()
+    nodes[name]=g.group(name,pivot,tuple(axis),math.degrees(deployed.angle(stowed)),explode=(0,1,-.2))
     g.between('Nose_upper_strut',pivot,(0,3.68,.77),.057,g.M['gear'],name)
     g.between('Nose_oleo',(0,3.68,.83),(0,3.81,.38),.035,g.M['steel'],name)
     for side in [-1,1]:
@@ -322,7 +353,7 @@ def build_gear(nodes):
     wheel((0,3.88,.28),.28,.17,'NoseWheel',name)
     g.add(g.box('Landing_lamp',(.16,.07,.12),(0,3.73,.92),material=g.M['gear'],bevel=.02),name)
     g.add(g.sphere('Lamp_lens',.058,(0,3.78,.92),g.M['white'],scale=(1,.25,.7)),name)
-    nodes['GearDoorNose']=g.group('GearDoorNose',(0,3.5,1.50),(1,0,0),102,explode=(0,1,-.4))
+    nodes['GearDoorNose']=g.group('GearDoorNose',(0,3.5,1.48),(1,0,0),102,explode=(0,1,-.4))
     g.add(g.box('Nose_door',(.39,.055,.72),(0,3.31,1.02),rot=(-12,0,0),material=g.M['under'],bevel=.025),'GearDoorNose')
     g.label('01',(0,3.273,1.06),.17,g.M['ink'],right=(-1,0,0),up=(0,0,1),group_name='GearDoorNose')
 

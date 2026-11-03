@@ -28,6 +28,34 @@ and [NAVAIR's F-16 page](https://www.navair.navy.mil/product/F-16-Fighting-Falco
 Kestrel is an authored design, not a dimensionally exact F-16 replica or
 manufacturer CAD. The lettering and livery are original geometry/materials.
 
+### Shape revision 02 (0.2.1)
+
+The first version used nominal dimensions and visually estimated cross sections;
+it was not fitted to measured reference views. Trent's low-angle screenshot
+exposed a high, flat-based canopy, tubular body and jagged intake intersection.
+This revision checks the silhouette against the
+[USAF three-view drawing preserved on Commons](https://commons.wikimedia.org/wiki/File:General_Dynamics_F-16_Fighting_Falcon_3-view_line_drawing.svg).
+The original drawing is public-domain USAF artwork. It is a proportion guide,
+not manufacturer section data; Kestrel still does not claim replica accuracy.
+
+- Cockpit moved 0.60 m aft and 0.12 m down, with a raked canopy sill and thinner frames.
+- Nose lowered 0.14 m at the tip; body shoulders widened and the dorsal profile reshaped.
+- Wings moved 0.45 m aft; curved shoulder skins replace flat root-extension plates.
+- Intake and nose gear moved 0.75 m aft. Exact boolean union/difference replaces
+  whole-face deletion, eliminating the visible stair-step seam. The inlet exterior
+  is now part of the fuselage; its lining and lip remain a separate subsystem.
+- Compressor resized to stay inside the duct; nose wheel folds beside the bore
+  and behind the cockpit. The closed door no longer clips through the duct floor.
+- Reduced seam contrast, smaller antenna and less metallic body finish.
+
+The fused airframe shell has zero boundary edges and zero non-manifold edges.
+That verifies a closed surface, not visual quality. Matched camera captures are
+the review evidence: [before](images/kestrel-before-low.png) and
+[after](images/kestrel-after-low.png). `node tools/review-jet.mjs` regenerates
+the comparison using the original GLB from Git commit `ee211b6` and the current
+viewer asset. Full low/side/hero/underside captures are kept under
+`artifacts/vehicles/kestrel/revision-02/`.
+
 ## Where to change the model
 
 | Source | Responsibility |
@@ -100,8 +128,8 @@ versions can change geometry and export hashes.
 
 ## Verification and limits
 
-The final export has **155,456 triangles**, **38 mesh groups**, **27 materials**
-and **28 articulated nodes** (including 16 nozzle petals). It is **4,299,944
+The revision 02 export has **170,048 triangles**, **38 mesh groups**, **27 materials**
+and **28 articulated nodes** (including 16 nozzle petals). It is **4,605,916
 bytes**. Measured exported bounds are **15.43 m long, 9.81 m wide, 4.80 m high**
 with gear deployed. These include probes/pods and differ from nominal design
 constants. The 15 browser checks passed on the RTX 5070 Ti through ANGLE/D3D11.
@@ -112,9 +140,10 @@ download SHA-256 and a 390 px mobile layout. There were zero runtime errors and
 zero failed requests. One shader compiler warning entry reported floating-point
 precision warnings (X4122); its text is preserved in the receipt.
 
-Visual inspection caught and corrected three issues that successful exports
-alone missed: coincident orange wing faces, landing gear rotating outside the
-airframe, and fuselage skin blocking the intake. The final gear bounds clear
+Visual inspection caught issues that successful exports alone missed: coincident
+orange wing faces, landing gear rotating outside the airframe, fuselage skin
+blocking the intake, and the low-angle defects addressed in revision 02.
+The final gear bounds clear
 1.25 m above the ground; that is a useful regression check, not proof of a
 mechanically accurate folding linkage or collision-free gear bay.
 

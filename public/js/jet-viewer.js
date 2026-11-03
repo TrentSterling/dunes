@@ -235,7 +235,7 @@ try {
       for(const m of Array.isArray(o.material)?o.material:[o.material]) {
         materials.add(m); m.envMapIntensity=.60;
         if(m.name==='Canopy coated glass'||m.name==='HUD combiner') {
-          m.transparent=true;m.opacity=m.name==='HUD combiner'?.28:.34;
+          m.transparent=true;m.opacity=m.name==='HUD combiner'?.28:.46;
           m.depthWrite=false;m.transmission=.25;m.side=THREE.DoubleSide;o.castShadow=false;
         }
       }
