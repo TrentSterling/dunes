@@ -10,8 +10,36 @@ builders and license are preserved. `upstream` points to Glamis with pushing
 disabled. There is no Dunes hosting remote yet.
 
 Jet Game (`../horde3d`) and Dustline (`../dustline`) are inspiration and future
-integration references. The immediate milestone is a proven script-to-Blender-to-game
-workflow, followed by original cars and a properly modeled jet.
+integration references. The buggy pipeline is verified, and the first original
+scripted jet is **Kestrel 01**, with its own Three.js inspection viewer.
+
+## Inspect the jet
+
+With `npm start` running, open **http://localhost:5189/jet.html**.
+
+![Kestrel 01 in the Three.js viewer](docs/images/kestrel-viewer.png)
+
+Orbit the actual exported model; open the canopy, retract the landing gear,
+move the control surfaces and nozzle petals, or spread the assembly apart.
+Six camera views include the cockpit. Livery, clay and wireframe modes expose
+the model's shape and construction. The download button returns the complete GLB.
+
+```powershell
+# First-time Blender dependency setup, if not already done:
+npm run vehicle:setup
+npm run jet:build
+npm run jet:render
+# Keep npm start running in another terminal:
+npm run jet:verify
+```
+
+- Editable Blender scene: `artifacts/vehicles/kestrel/kestrel.blend`
+- Viewer asset: `assets/kestrel/kestrel.glb`
+- Shape specification: `blender/kestrel/jet_spec.py`
+- [Source guide, ViperOneOne references, and verification](docs/KESTREL-REFERENCE.md)
+
+This is a model and inspection viewer. Flight physics and game integration are
+the next stage. The GLB is checked in, so viewing does not require Blender.
 
 ## Play locally
 

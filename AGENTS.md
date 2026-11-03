@@ -21,6 +21,14 @@ moving parts. This is a separate local repository at C:/trontstack/dunes.
   it does not overwrite bundled assets or drive the owner's open browser.
 - A successful buggy export does not establish a finished jet or flight model.
 
+Kestrel is the original scripted jet at blender/kestrel/. Read
+docs/KESTREL-REFERENCE.md before changing it. Its tracked viewer exports live in
+assets/kestrel/; editable scenes, renders and raw test receipts stay under
+artifacts/vehicles/kestrel/. `npm run jet:build`, `jet:render`, and `jet:verify`
+exercise the source-to-viewer loop. Open http://localhost:5189/jet.html.
+Preserve named subsystem pivots and exported hinge axes. Verify both rest and
+articulated poses visually; a rotation changing does not prove correct stowage.
+
 `npm start` serves localhost:5189. Run `npm run vehicle:setup`, `vehicle:build`,
 `vehicle:render`, `vehicle:bake`, and `vehicle:verify` for the full pipeline.
 Verification needs the local server and installed Chrome. Blender 4.5.2 and

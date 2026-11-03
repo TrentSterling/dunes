@@ -1,0 +1,128 @@
+{
+  "checks": [
+    "GLB loads with the complete aircraft and named articulated nodes",
+    "All six camera presets render, including the exported pilot-eye view",
+    "canopy UI slider moves the exported Canopy pivot",
+    "gear UI slider moves the exported GearMain_L pivot",
+    "pitch UI slider moves the exported Stabilator_L pivot",
+    "roll UI slider moves the exported Flaperon_R pivot",
+    "yaw UI slider moves the exported Rudder pivot",
+    "burner UI slider moves the exported NozzlePetal_00 pivot",
+    "Stowed landing gear clears 1.25m above the ground",
+    "Assembly spread separates original subsystems",
+    "Livery, clay and wireframe modes work",
+    "Turntable changes the camera and grid control responds",
+    "Pointer dragging orbits the model",
+    "Download returns the complete generated GLB",
+    "390px mobile layout has no horizontal overflow"
+  ],
+  "errors": [],
+  "warnings": [
+    "THREE.WebGLProgram: Program Info Log: (210,86-138): warning X4122: sum of 0.996094 and -2.98545e-017 cannot be represented accurately in double precision\n(209,39-65): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision\n(210,87-113): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision\n(209,39-65): warning X4122: sum of 1 and -1.66644e-018 cannot be represented accurately in double precision\n(210,87-113): warning X4122: sum of 1 and -1.66644e-018 cannot be represented accurately in double precision"
+  ],
+  "failedRequests": [],
+  "screenshots": [
+    "hero.png",
+    "top.png",
+    "side.png",
+    "front.png",
+    "rear.png",
+    "cockpit.png",
+    "articulated.png",
+    "assembly.png",
+    "clay.png",
+    "wire.png",
+    "mobile.png"
+  ],
+  "runtime": {
+    "triangles": 155456,
+    "nodes": [
+      "Canopy",
+      "Cockpit",
+      "Engine",
+      "Fin",
+      "Flaperon_L",
+      "Flaperon_R",
+      "Fuselage",
+      "GearDoorMain_L",
+      "GearDoorMain_R",
+      "GearDoorNose",
+      "GearMain_L",
+      "GearMain_R",
+      "GearNose",
+      "Intake",
+      "NozzlePetal_00",
+      "NozzlePetal_01",
+      "NozzlePetal_02",
+      "NozzlePetal_03",
+      "NozzlePetal_04",
+      "NozzlePetal_05",
+      "NozzlePetal_06",
+      "NozzlePetal_07",
+      "NozzlePetal_08",
+      "NozzlePetal_09",
+      "NozzlePetal_10",
+      "NozzlePetal_11",
+      "NozzlePetal_12",
+      "NozzlePetal_13",
+      "NozzlePetal_14",
+      "NozzlePetal_15",
+      "Rudder",
+      "Sensors",
+      "Stabilator_L",
+      "Stabilator_R",
+      "TipPod_L",
+      "TipPod_R",
+      "Wing_L",
+      "Wing_R"
+    ],
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "drawCalls": 392,
+    "dimensions": {
+      "length": 15.429999828338623,
+      "span": 9.808784484863281,
+      "height": 4.8035982847213745
+    }
+  },
+  "stowedGearBounds": {
+    "GearMain_L": {
+      "min": [
+        -0.6506698730977605,
+        1.5797653843506254,
+        -1.2220396371010769
+      ],
+      "max": [
+        0.17731612441105649,
+        2.299283390113108,
+        0.8318763336847923
+      ]
+    },
+    "GearMain_R": {
+      "min": [
+        -0.17731612441105649,
+        1.5797654211126286,
+        -1.2220396371010769
+      ],
+      "max": [
+        0.6506698730977605,
+        2.299283390113108,
+        0.8318763336847923
+      ]
+    },
+    "GearNose": {
+      "min": [
+        -0.17000000178813934,
+        1.5081047339684186,
+        -3.572297231941034
+      ],
+      "max": [
+        0.17000000178813934,
+        2.158146539103722,
+        -1.7937828518522942
+      ]
+    }
+  },
+  "glbSha256": "ce7e5dcf006586d0e081af2bb3fc52e2696188e7196379e7710711eae1a0e971",
+  "passed": true,
+  "verifiedUtc": "2026-11-03T12:12:46.657Z"
+}

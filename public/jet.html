@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#e9e7e2">
+  <title>Kestrel 01 · Dunes Airframe Lab</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./jet.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+</head>
+<body>
+  <main id="app">
+    <header class="header">
+      <a href="./" class="brand" aria-label="Dunes home"><span class="brand-mark">D/</span>DUNES<span class="brand-divider"></span><span class="lab">AIRFRAME LAB</span></a>
+      <div class="header-right"><span class="version">DESIGN STUDY 001</span><a class="download" href="./assets/kestrel/kestrel.glb" download="kestrel-01.glb">Download model <span aria-hidden="true">↗</span></a></div>
+    </header>
+    <section class="stage" aria-label="Interactive Kestrel jet model">
+      <canvas id="viewport" tabindex="0" aria-label="3D jet. Drag to orbit, scroll to zoom, right drag to pan."></canvas>
+      <div class="stage-title"><span class="eyebrow"><i></i> SINGLE-ENGINE FIGHTER</span><h1>Kestrel <span>01</span></h1><p>AIRFRAME / MATERIAL / MOTION</p></div>
+      <div class="dimensions"><div><span>LENGTH</span><b id="length">—</b><small>m</small></div><div><span>SPAN</span><b id="span">—</b><small>m</small></div><div><span>HEIGHT</span><b id="height">—</b><small>m</small></div></div>
+      <div id="loading" role="status"><span class="loader"></span><b>Preparing the airframe</b><span id="load-detail">Loading geometry and materials</span></div>
+      <div class="stage-footer"><span id="part-name">DRAG TO ORBIT <span class="dot">·</span> SCROLL TO ZOOM <span class="dot">·</span> CLICK A PART</span><button id="fullscreen" class="plain" title="Fullscreen viewer">FULLSCREEN ↗</button></div>
+      <nav class="views" aria-label="Camera views"><button data-view="hero" class="active">Perspective</button><button data-view="side">Side</button><button data-view="top">Top</button><button data-view="front">Front</button><button data-view="rear">Rear</button><button data-view="cockpit">Cockpit</button></nav>
+    </section>
+    <aside class="controls" aria-label="Model controls">
+      <div class="control-heading"><span>INSPECTION PANEL</span><button id="reset" class="plain">RESET ↺</button></div>
+      <section class="control-section">
+        <div class="section-heading"><h2>Surface</h2><span>01</span></div>
+        <div class="segmented" aria-label="Surface display"><button data-material="paint" class="active">Livery</button><button data-material="clay">Clay</button><button data-material="wire">Wireframe</button></div>
+        <div class="toggle-row"><label for="rotate">Turntable</label><input id="rotate" type="checkbox" role="switch"></div>
+        <div class="toggle-row"><label for="grid">Scale grid</label><input id="grid" type="checkbox" role="switch"></div>
+      </section>
+      <section class="control-section">
+        <div class="section-heading"><h2>Configuration</h2><span>02</span></div>
+        <label class="slider-label" for="gear">Landing gear <output id="gear-value">DEPLOYED</output></label><input id="gear" type="range" min="0" max="1" step="0.01" value="1">
+        <label class="slider-label" for="canopy">Canopy <output id="canopy-value">CLOSED</output></label><input id="canopy" type="range" min="0" max="1" step="0.01" value="0">
+        <label class="slider-label" for="burner">Engine glow <output id="burner-value">IDLE</output></label><input id="burner" type="range" min="0" max="1" step="0.01" value="0">
+        <label class="slider-label" for="explode">Assembly spread <output id="explode-value">0%</output></label><input id="explode" type="range" min="0" max="1" step="0.01" value="0">
+      </section>
+      <section class="control-section">
+        <div class="section-heading"><h2>Control surfaces</h2><span>03</span></div>
+        <label class="slider-label" for="pitch">Pitch <output id="pitch-value">0°</output></label><input id="pitch" type="range" min="-1" max="1" step="0.01" value="0">
+        <label class="slider-label" for="roll">Roll <output id="roll-value">0°</output></label><input id="roll" type="range" min="-1" max="1" step="0.01" value="0">
+        <label class="slider-label" for="yaw">Yaw <output id="yaw-value">0°</output></label><input id="yaw" type="range" min="-1" max="1" step="0.01" value="0">
+      </section>
+      <footer class="model-note"><div><span class="status-dot"></span><b id="status">MODEL LOADING</b></div><p>Original airframe. Generated in Blender.<br>Inspecting the exported geometry.</p><a href="./assets/kestrel/kestrel.json" target="_blank" rel="noopener">Model specification ↗</a></footer>
+    </aside>
+  </main>
+  <script type="module" src="./js/jet-viewer.js"></script>
+</body>
+</html>

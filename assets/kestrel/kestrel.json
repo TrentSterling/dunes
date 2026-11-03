@@ -1,0 +1,72 @@
+{
+  "name": "Kestrel 01",
+  "version": "0.2.0",
+  "units": "meters",
+  "triangles": 155456,
+  "meshGroups": 38,
+  "materials": 27,
+  "nodes": 78,
+  "boundsBlender": {
+    "min": [
+      -4.904392242431641,
+      -7.579999923706055,
+      -0.0035980939865112305
+    ],
+    "max": [
+      4.904392242431641,
+      7.849999904632568,
+      4.800000190734863
+    ]
+  },
+  "dimensions": {
+    "length": 15.429999828338623,
+    "span": 9.808784484863281,
+    "height": 4.8035982847213745
+  },
+  "pilotEyeGltf": [
+    0,
+    3.08,
+    -3.34
+  ],
+  "articulated": [
+    "Flaperon_L",
+    "Stabilator_L",
+    "Flaperon_R",
+    "Stabilator_R",
+    "Rudder",
+    "Canopy",
+    "GearMain_L",
+    "GearDoorMain_L",
+    "GearMain_R",
+    "GearDoorMain_R",
+    "GearNose",
+    "GearDoorNose",
+    "NozzlePetal_00",
+    "NozzlePetal_01",
+    "NozzlePetal_02",
+    "NozzlePetal_03",
+    "NozzlePetal_04",
+    "NozzlePetal_05",
+    "NozzlePetal_06",
+    "NozzlePetal_07",
+    "NozzlePetal_08",
+    "NozzlePetal_09",
+    "NozzlePetal_10",
+    "NozzlePetal_11",
+    "NozzlePetal_12",
+    "NozzlePetal_13",
+    "NozzlePetal_14",
+    "NozzlePetal_15"
+  ],
+  "glbBytes": 4299944,
+  "glbSha256": "ce7e5dcf006586d0e081af2bb3fc52e2696188e7196379e7710711eae1a0e971",
+  "sourceSha256": {
+    "build.py": "636e0a46a448ca33b6423d031f4f9ec1956eef7cc892f50903f2f62fe5bc89c6",
+    "geometry.py": "049614e6123b5ca4645aa3282c24ab581759f3f6a332efab8b176fa66acdb01c",
+    "jet_spec.py": "4135e62687ec0ede1fa626aad2b94b2585190ccdcd1791df506276bb377c0f15",
+    "parts.py": "392019bdcd561ce4e2b7dd1c4a16b5e88b791f2cfb18bdc926372a2862190ea3",
+    "render.py": "7a49d2be54b635bf2ef24db8e69d1ecf9ac0239651e6a2e7ed530510bf7dfe7a"
+  },
+  "source": "Original Dunes aircraft geometry, Glamis generic modeling primitives (Unlicense)",
+  "reference": "https://viperoneone.com/notes/jets/ (explanatory guidance only; no code or assets copied)"
+}
