@@ -1,0 +1,111 @@
+{
+  "asset": "C:\\trontstack\\dunes\\artifacts\\vehicles\\glx-pro\\sandcar.glb",
+  "checks": [
+    "Loaded GLX pro with four wheels, four uprights, steering wheel and suspension rig",
+    "Rendered exterior and live cockpit",
+    "Keyboard steering visibly changes the steering-wheel transform",
+    "Keyboard throttle moves the vehicle; wheels rotate and suspension height changes",
+    "No browser errors or failed HTTP resources"
+  ],
+  "errors": [],
+  "warnings": [
+    "THREE.WebGLProgram: Program Info Log: (210,86-138): warning X4122: sum of 0.996094 and -2.98545e-017 cannot be represented accurately in double precision\n(209,39-65): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision\n(210,87-113): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision\n(209,39-65): warning X4122: sum of 1 and -1.66644e-018 cannot be represented accurately in double precision\n(210,87-113): warning X4122: sum of 1 and -1.66644e-018 cannot be represented accurately in double precision"
+  ],
+  "failures": [],
+  "model": {
+    "car": "pro",
+    "wheelRigs": 4,
+    "uprights": 4,
+    "movingSegments": 26,
+    "meshes": 265,
+    "triangles": 404846,
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "driverEye": [
+      0.36000001430511475,
+      1.2549999952316284,
+      -0.25
+    ],
+    "steeringWheel": true
+  },
+  "before": {
+    "position": [
+      944.8673743011982,
+      90.45202457066982,
+      -795.2824858871335
+    ],
+    "speed": -0.028450301954452827,
+    "wheel": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "steering": [
+      0.5483037829399109,
+      0,
+      0,
+      0.8362792730331421
+    ],
+    "wheelHeights": [
+      0.40505808550664957,
+      0.3874540711029477,
+      0.47707518488171685,
+      0.4303281080771887
+    ]
+  },
+  "steered": {
+    "position": [
+      944.8858595581496,
+      90.44167686877392,
+      -795.277365545882
+    ],
+    "speed": -0.02791630179399191,
+    "wheel": [
+      0,
+      0.2999946613425732,
+      0,
+      0.9539408803306182
+    ],
+    "steering": [
+      0.14667061966685616,
+      0.8058037388258237,
+      0.528322598146963,
+      0.22370372593938698
+    ],
+    "wheelHeights": [
+      0.4044564894580239,
+      0.3882671399750658,
+      0.47875213461585775,
+      0.4325885670474775
+    ]
+  },
+  "after": {
+    "position": [
+      914.9026099732366,
+      98.5360824335264,
+      -756.4061053133591
+    ],
+    "speed": 34.553372801470076,
+    "wheel": [
+      -0.36676787428561186,
+      -0.006843905954132501,
+      0.002698236725405495,
+      -0.9302834013685713
+    ],
+    "steering": [
+      0.5479362949029051,
+      0.030612904136661255,
+      0.02007125093992735,
+      0.8357187760276541
+    ],
+    "wheelHeights": [
+      0.4316909223148986,
+      0.4979168486029979,
+      0.5882865237646245,
+      0.5872718703817276
+    ]
+  },
+  "distanceMetres": 49.74547275157036,
+  "passed": true,
+  "verifiedUtc": "2026-11-03T11:39:08.466Z"
+}

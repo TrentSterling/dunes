@@ -1,5 +1,9 @@
 # dependencies
 node_modules/
+.tools/
+artifacts/
+blender/trx_pro/renders/
+blender/trx_pro/out/*.glb
 
 # saved tire tracks and other runtime/player data written by the server
 track-data/

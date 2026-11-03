@@ -120,6 +120,8 @@ def main():
         phys = os.path.splitext(args.glb)[0] + '.physics.json'
     write_physics(C, phys)
     os.makedirs(os.path.dirname(args.blend), exist_ok=True)
+    # Dunes: keep the editable scene self-contained, including regenerated textures.
+    bpy.ops.file.pack_all()
     bpy.ops.wm.save_as_mainfile(filepath=args.blend, compress=True)
     if not args.no_export:
         export_glb(args.glb)

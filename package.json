@@ -1,16 +1,26 @@
 {
-  "name": "glamis-game",
+  "name": "dunes",
   "version": "0.1.0",
-  "description": "Multiplayer sandrail driving game on the real Glamis (Imperial Sand Dunes) terrain",
+  "description": "Dunes: driving sandbox and reproducible Blender vehicle pipeline",
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js 8080"
+    "start": "node server.js 5189",
+    "vehicle:setup": "python tools/vehicle_pipeline.py setup",
+    "vehicle:build": "python tools/vehicle_pipeline.py build",
+    "vehicle:render": "python tools/vehicle_pipeline.py render",
+    "vehicle:bake": "python tools/vehicle_pipeline.py bake",
+    "vehicle:check": "python tools/vehicle_pipeline.py check",
+    "vehicle:verify": "node tools/verify-vehicle.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "Unlicense",
   "dependencies": {
     "ws": "^8.22.0"
-  }
+  },
+  "devDependencies": {
+    "playwright-core": "1.56.1"
+  },
+  "private": true
 }

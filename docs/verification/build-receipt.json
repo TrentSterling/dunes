@@ -1,0 +1,30 @@
+{
+  "verifiedUtc": "2026-11-03T11:35:56.063775+00:00",
+  "scope": "Generated GLB structure and rig references; visual quality requires rendered inspection.",
+  "glbBytes": 25173556,
+  "glbSha256": "f811d8d55ad4fe1e74e606ee0d49019e645f2d2908a820fe58d2972d3256af0f",
+  "blendSha256": "58142b41c5e22f9307d7752e7ac7be772b15bc8e33597036d01ec2aa68eb3048",
+  "physicsSha256": "2aeb0feb30e674aefd966dd6b9f0bc4ca5fc9875dc4ddf84adcd93da2304362e",
+  "nodes": 48,
+  "meshes": 37,
+  "materials": 98,
+  "triangles": 404846,
+  "wheels": 4,
+  "links": 18,
+  "shocks": 8,
+  "requiredNodesPresent": true,
+  "ambientOcclusionBaked": true,
+  "sourceHashes": {
+    "blender/trx_pro/build.py": "7aa5ec0ad46094b68faa4e7b24074dcc03745093d260cd2d52113a71e8d87075",
+    "blender/trx_pro/common.py": "1f88ad3c773650a5c48978ae7a029a82c694b5c363da962d89a21597441f77cc",
+    "blender/trx_pro/spec.py": "df5760ae2d662bde004ad09bcb117706aafb0827d8d368e3738598331b7b0e50",
+    "blender/trx_pro/parts/_smoke.py": "5b93fad74e5b8aa96381864718751055d0daca124fae624da96b30d36b6854b2",
+    "blender/trx_pro/parts/body.py": "620bf7d468613db7c159e95054c8465915753f12ec36624214eb70e2a0a74202",
+    "blender/trx_pro/parts/chassis.py": "3db37f59b94e27d642051224c39bfe3fc2f61a899e3b8bafad33101c49c2db09",
+    "blender/trx_pro/parts/interior.py": "f2da8e52ec2821a18f0f1c3276a68562cc2bdca6fe3140eb05ecb15172ab2444",
+    "blender/trx_pro/parts/powertrain.py": "5fb8679067c4af4a77109bc9af1f81ee84dc0b3ee70b9b16d424c3ac78848d55",
+    "blender/trx_pro/parts/suspension.py": "2dd749f87c7bbda3d5e63e80a6fd6806832908cf3d3f056677c360ae4728f87e",
+    "blender/trx_pro/parts/textures.py": "43084d8dd7f31f4bfe9d7f12bd47880b5b8e02ad3a9a77a0fb47f61f65de7e78",
+    "blender/trx_pro/parts/wheels.py": "0f05c0df93a895cc675f4f7758d6445cd1eb5d1f6b3ff606f0ca4d7797f65b4b"
+  }
+}
