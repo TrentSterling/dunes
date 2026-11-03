@@ -12,6 +12,8 @@
 // `rpm` is the engine speed the recording was made at: playback speed is the game's rpm over it.
 // `loop` is the part of the file that repeats (seconds, from the start; negative = from the end),
 // `xfade` how long the end blends into the start so the loop has no click.
+import { STATIC_HOSTING } from './runtime-config.js';
+
 const SOUNDS = {
   idle:          { rpm: 1490, loop: [0.10, 13.0], xfade: 0.30 },
   full_throttle: { rpm: 6200, loop: [2.40, 6.90], xfade: 0.20 }, // skips the shift dip at 2.1 s
@@ -28,7 +30,7 @@ let sharedCtx = null, sharedSamples = null;
 // the server lists assets/audio/ as JSON, so optional files that are not there are never requested
 async function listAudioDir() {
   try {
-    const r = await fetch(AUDIO_DIR);
+    const r = await fetch(STATIC_HOSTING ? AUDIO_DIR + 'index.json' : AUDIO_DIR);
     if (r.ok) return await r.json();
   } catch (e) { /* older server: no listing */ }
   return ['idle.mp3', 'full_throttle.mp3'];

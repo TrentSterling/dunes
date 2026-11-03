@@ -1,0 +1,47 @@
+{
+  "checks": [
+    "Rebuilt car and separate original shock components load",
+    "All eight original joined shocks are physically removed, including bypass assemblies",
+    "21 combinations of travel and steering keep rigid links and upright connections within 0.1 mm",
+    "Actual shock-eye mesh centers stay within 0.1 mm of the mounts; barrels retain their size",
+    "Actual hub height matches each wheel travel control, including while steering",
+    "Each wheel slider independently articulates its suspension",
+    "Steering slider turns front wheels and uprights about the kingpins",
+    "Cycle starts, changes wheel travel and pauses without drift",
+    "All motion patterns run",
+    "Single bump excites the front actuator response; reset clears it",
+    "Damping changes the spring response after the bump",
+    "Full, ghost and rig views, hidden wheels, pivot overlay and six camera presets render",
+    "Pointer orbit moves the camera",
+    "390px layout fits without horizontal overflow"
+  ],
+  "errors": [],
+  "warnings": [
+    "THREE.WebGLProgram: Program Info Log: (210,86-138): warning X4122: sum of 0.996094 and -2.98545e-017 cannot be represented accurately in double precision\n(209,39-65): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision\n(210,87-113): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision\n(209,39-65): warning X4122: sum of 1 and -1.66644e-018 cannot be represented accurately in double precision\n(210,87-113): warning X4122: sum of 1 and -1.66644e-018 cannot be represented accurately in double precision"
+  ],
+  "failedRequests": [],
+  "screenshots": [
+    "overview.png",
+    "cross-axle-ghost.png",
+    "rig.png",
+    "front.png",
+    "rear.png",
+    "side.png",
+    "under.png",
+    "detail.png",
+    "mobile.png"
+  ],
+  "runtime": {
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "triangles": 810750,
+    "calls": 804,
+    "shockMeshes": 170
+  },
+  "revision": "20261103-r2",
+  "damping": {
+    "0.15": 0.07077079263665709,
+    "1.2": 0.03623978173768152
+  },
+  "passed": true,
+  "verifiedUtc": "2026-11-03T19:44:21.348Z"
+}

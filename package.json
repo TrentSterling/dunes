@@ -1,11 +1,14 @@
 {
   "name": "dunes",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Dunes: driving sandbox and reproducible Blender vehicle pipeline",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js 5189",
+    "build:pages": "node tools/build-pages.mjs",
+    "build:net": "node tools/build-network.mjs",
+    "multiplayer:verify": "node tools/verify-multiplayer.mjs",
     "vehicle:setup": "python tools/vehicle_pipeline.py setup",
     "vehicle:build": "python tools/vehicle_pipeline.py build",
     "vehicle:render": "python tools/vehicle_pipeline.py render",
@@ -14,15 +17,19 @@
     "vehicle:verify": "node tools/verify-vehicle.mjs",
     "jet:build": "python tools/jet_pipeline.py build",
     "jet:render": "python tools/jet_pipeline.py render",
-    "jet:verify": "node tools/verify-jet.mjs"
+    "jet:verify": "node tools/verify-jet.mjs",
+    "suspension:build": "python tools/vehicle_pipeline.py suspension",
+    "suspension:verify": "node tools/verify-suspension.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "Unlicense",
   "dependencies": {
+    "trystero": "0.26.0",
     "ws": "^8.22.0"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "playwright-core": "1.56.1"
   },
   "private": true

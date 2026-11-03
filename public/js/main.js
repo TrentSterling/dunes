@@ -321,7 +321,7 @@ async function main() {
   const remotes = new Map();
   let netRemoteSetting = null, pendingWorld = null;
   const net = new NetClient({
-    onStatus: (ok) => { $('net').textContent = ok ? 'Online' : 'Offline (single player)'; tlog.setConnected(ok); },
+    onStatus: (ok, label) => { $('net').textContent = label || (ok ? 'Online' : 'Offline (single player)'); tlog.setConnected(ok); },
     onBinary: (f) => {
       if (f[0] === 1) tlog.addRemote(f, 1, Math.floor((f.length - 1) / REC));
       else if (f[0] === 2) tlog.receiveTile(f[1], f[2], f, 3, Math.floor((f.length - 3) / REC));
@@ -345,6 +345,7 @@ async function main() {
     onState: (id, s) => { const r = remotes.get(id); if (r) { r.buf.push({ t: performance.now(), s }); if (r.buf.length > 30) r.buf.shift(); } },
   });
   tlog.send = (buf) => net.sendBinary(buf);
+  net.trackLog = tlog;
   tlog.request = (keys) => net.sendJSON({ t: 'trkReq', keys });
   const playerName = localStorage.getItem('glamis-name') || ('Driver ' + Math.floor(Math.random() * 900 + 100));
   net.world = () => Object.fromEntries(GLOBAL_KEYS.map(k => [k, settings[k]]));
@@ -979,7 +980,7 @@ async function main() {
     renderer.setSize(innerWidth, innerHeight);
   });
   // test hooks
-  window.__game = { teleport, get car() { return car; }, get model() { return model; }, tlog, ruts, templates, bots, menu, settings, setSetting, weather, radar, camera, renderer, scene, terrain, deform, particles, setSun, input, keys, sun, sky, hemi, sunDir, setCam: (m) => { camMode = m; }, setOrbit: (y, p, d) => { orbitYaw = y; orbitPitch = p; camDist = d; camInit = false; } };
+  window.__game = { teleport, get car() { return car; }, get model() { return model; }, net, remotes, tlog, ruts, templates, bots, menu, settings, setSetting, weather, radar, camera, renderer, scene, terrain, deform, particles, setSun, input, keys, sun, sky, hemi, sunDir, setCam: (m) => { camMode = m; }, setOrbit: (y, p, d) => { orbitYaw = y; orbitPitch = p; camDist = d; camInit = false; } };
   frame();
 }
 

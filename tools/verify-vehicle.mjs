@@ -6,10 +6,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const out = path.join(root, 'artifacts/vehicles/glx-pro');
+const out = process.env.DUNES_OUTPUT || path.join(root, 'artifacts/vehicles/glx-pro');
 fs.mkdirSync(out, { recursive: true });
 const bundled = process.argv.includes('--bundled');
-const glb = path.join(out, 'sandcar.glb');
+const glb = path.join(root, 'artifacts/vehicles/glx-pro/sandcar.glb');
 if (!bundled) assert.ok(fs.existsSync(glb), 'Run npm run vehicle:build first');
 const base = process.env.DUNES_URL || 'http://127.0.0.1:5189';
 const browser = await chromium.launch({ channel: 'chrome', headless: true,
@@ -35,7 +35,7 @@ try {
       path: glb.replace(/\.glb$/, '.physics.json'), contentType: 'application/json',
     }));
   }
-  await page.goto(`${base}/?q=high&shot&tod=15`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${base}/?q=high&shot&tod=15&room=verify-vehicle-${Date.now()}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__frames > 10 && window.__game?.model?.wheelRigs?.length === 4,
     null, { timeout: 120000 });
   const waitFrames = async n => {

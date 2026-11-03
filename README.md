@@ -1,17 +1,50 @@
 # Dunes
 
 Driving sandbox and reproducible Blender vehicle modeling project for Trent.
-Future public destination: **https://tront.xyz/dunes/**. This checkout is local;
-that URL has not been deployed by this project.
+Play: **https://tront.xyz/dunes/**.
+Source: **https://github.com/TrentSterling/dunes**.
 
 Starting point: [iotdatabase/glamis_game](https://github.com/iotdatabase/glamis_game),
 imported at `22e58650c892cdae95a7e2f064bdffaefd277785`. Its history, game, vehicle
 builders and license are preserved. `upstream` points to Glamis with pushing
-disabled. There is no Dunes hosting remote yet.
+disabled. Dunes has its own origin, identity and release workflow.
 
 Jet Game (`../horde3d`) and Dustline (`../dustline`) are inspiration and future
 integration references. The buggy pipeline is verified, and the first original
 scripted jet is **Kestrel 01**, with its own Three.js inspection viewer.
+
+The public game supports solo driving, computer sandrails and **Trystero
+multiplayer**. Open the same URL to meet in the public room, or share a named
+room such as `https://tront.xyz/dunes/?room=trent-and-friends`. Cars, world settings
+and tire tracks are shared directly between connected peers. Tracks are kept in
+the active browsers; the hosted game has no permanent track server.
+
+The web release also
+includes the [suspension viewer](https://tront.xyz/dunes/suspension.html) and
+[Kestrel viewer](https://tront.xyz/dunes/jet.html). Kestrel is a model study;
+JET GAME remains a separate project for future buggy-pipeline reuse.
+
+Pushes to `main` publish through GitHub Pages. Run `npm run build:pages` to build
+the same static files locally. See [deployment details](docs/DEPLOYMENT.md).
+
+## Inspect the car suspension
+
+With `npm start` running, open **http://localhost:5189/suspension.html**.
+
+The rebuilt GLX Pro sits on a four-post inspection stand. Use independent wheel
+travel, steering, cross-axle and axle cycles, or a single bump with adjustable
+response and damping. Ghost the body, hide the wheels, show the joint overlay,
+and switch between six camera views.
+
+The viewer articulates rigid suspension arms and uprights and uses 170 separate
+authored shock meshes. It keeps the original game assets and game rig unchanged.
+Rear droop is limited to 150 mm because the authored rear linkage cannot follow
+the game's 330 mm droop setting with fixed rod lengths on its neutral branch.
+This is a kinematic inspection tool, not a validated vehicle dynamics model.
+
+`npm run suspension:build` regenerates the split shocks from staged Blender
+source and copies the existing rebuilt car. `npm run suspension:verify` checks
+the viewer in isolated Chrome. See [rig details and evidence](docs/SUSPENSION-VIEWER.md).
 
 ## Inspect the jet
 

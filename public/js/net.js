@@ -1,6 +1,10 @@
 // Multiplayer client: sends our car state at 20 Hz, interpolates other cars.
+import { STATIC_HOSTING } from './runtime-config.js';
+import { PeerClient } from './net-peer.js';
+
 export class NetClient {
   constructor(handlers) {
+    if (STATIC_HOSTING || new URLSearchParams(location.search).get('net') === 'p2p') return new PeerClient(handlers);
     this.h = handlers;
     this.id = null;
     this.ws = null;

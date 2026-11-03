@@ -93,7 +93,7 @@ def inspect_export():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['setup', 'build', 'render', 'bake', 'check'])
+    parser.add_argument('action', choices=['setup', 'build', 'render', 'bake', 'check', 'suspension'])
     parser.add_argument('--blender', help='Override Blender executable (or set BLENDER)')
     parser.add_argument('--only', help='Build selected comma-separated parts into an inspection .blend')
     parser.add_argument('--views', default='front_3q_right,side_right,rear_3q_right,interior_dash')
@@ -101,6 +101,13 @@ def main():
     parser.add_argument('--samples', type=int, default=32)
     parser.add_argument('--threads', type=int, default=8)
     args = parser.parse_args()
+    if args.action == 'suspension':
+        env = os.environ.copy()
+        if args.blender:
+            env['BLENDER'] = str(Path(args.blender).resolve())
+        subprocess.run([sys.executable, str(ROOT / 'tools' / 'build-suspension-shocks.py')],
+                       env=env, check=True)
+        return
     if args.action == 'check':
         inspect_export()
         return

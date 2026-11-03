@@ -114,6 +114,6 @@ JavaScript/Three.js WebGPU game with an arcade jet. Dustline lives in
 and procedural vehicle assemblies. These were read for context, without
 retesting those games or modifying either repo.
 
-https://tront.xyz/dunes/ is the eventual route. The inherited game includes a
-Node WebSocket and persistent-track service. Static hosting alone would not
-establish the existing multiplayer behavior.
+https://tront.xyz/dunes/ is the public route. The GitHub Pages build uses
+Trystero for peer multiplayer; the inherited Node WebSocket and persistent-track
+service remain available locally. See DEPLOYMENT.md for hosting and networking.

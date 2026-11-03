@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#e9e7e2"><title>GLX Pro · Dunes Suspension Lab</title>
+  <link rel="icon" href="data:,"><link rel="stylesheet" href="./suspension.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+</head>
+<body>
+<main id="app">
+  <header><a class="brand" href="./">D<span>/</span> DUNES</a><span class="header-label">SUSPENSION LAB</span><nav><a href="./jet.html">Jet viewer</a><a href="./" target="_blank" rel="noopener">Open Glamis ↗</a></nav></header>
+  <section class="stage" aria-label="Interactive sandrail suspension model">
+    <canvas id="viewport" tabindex="0" aria-label="Drag to orbit, wheel to zoom, right-drag to pan. Home resets the camera."></canvas>
+    <div class="title"><span class="eyebrow">GLX PRO SANDRAIL</span><h1>Put it through<br>its paces.</h1><p>Four corners. Every connection in view.</p></div>
+    <div class="views" aria-label="Camera presets"><button data-view="hero" class="active">Overview</button><button data-view="front">Front</button><button data-view="rear">Rear</button><button data-view="side">Side</button><button data-view="under">Underneath</button><button data-view="detail">Front detail</button></div>
+    <div class="loading" id="loading" role="status"><b>Preparing the test stand</b><span id="load-detail">Loading the rebuilt sandrail…</span></div>
+    <div class="stage-bottom"><span>DRAG TO ORBIT · SCROLL TO ZOOM · RIGHT-DRAG TO PAN</span><button id="fullscreen" title="Toggle fullscreen">⛶ Fullscreen</button></div>
+    <div class="telemetry" aria-label="Live wheel travel">
+      <div data-corner="FL"><span>FRONT LEFT</span><strong id="travel-FL">0 <small>mm</small></strong><div class="travel-track"><i></i><b id="bar-FL"></b></div><em id="camber-FL">0.0° camber</em></div>
+      <div data-corner="FR"><span>FRONT RIGHT</span><strong id="travel-FR">0 <small>mm</small></strong><div class="travel-track"><i></i><b id="bar-FR"></b></div><em id="camber-FR">0.0° camber</em></div>
+      <div data-corner="RL"><span>REAR LEFT</span><strong id="travel-RL">0 <small>mm</small></strong><div class="travel-track"><i></i><b id="bar-RL"></b></div><em id="camber-RL">0.0° camber</em></div>
+      <div data-corner="RR"><span>REAR RIGHT</span><strong id="travel-RR">0 <small>mm</small></strong><div class="travel-track"><i></i><b id="bar-RR"></b></div><em id="camber-RR">0.0° camber</em></div>
+    </div>
+  </section>
+  <aside aria-label="Suspension controls">
+    <div class="panel-title"><h2>Test stand</h2><span id="status">LOADING</span></div>
+    <fieldset><legend>Exercise the suspension</legend>
+      <label for="pattern">Motion pattern</label><select id="pattern"><option value="cross">Cross axle</option><option value="heave">All four wheels</option><option value="front">Front axle</option><option value="rear">Rear axle</option><option value="ripple">Rolling bumps</option><option value="manual">Manual travel</option></select>
+      <div class="actions"><button id="play" class="primary" disabled>Pause cycle</button><button id="pulse" disabled>Single bump</button></div>
+      <label for="amplitude">Cycle travel <output id="amplitude-value">120 mm</output></label><input id="amplitude" type="range" min="20" max="250" step="5" value="120">
+      <label for="speed">Cycle speed <output id="speed-value">0.30 Hz</output></label><input id="speed" type="range" min="0.1" max="1.2" step="0.05" value="0.3">
+      <details><summary>Actuator response</summary><p class="hint">Spring response drives the test stand. The chassis stays fixed for inspection.</p>
+        <label for="frequency">Response frequency <output id="frequency-value">2.0 Hz</output></label><input id="frequency" type="range" min="0.8" max="4" step="0.1" value="2">
+        <label for="damping">Damping ratio <output id="damping-value">0.65</output></label><input id="damping" type="range" min="0.1" max="1.4" step="0.05" value="0.65">
+      </details>
+    </fieldset>
+    <fieldset><legend>Pose the wheels</legend><div class="limits"><span>Front −330 / rear −150</span><span>+300 mm bump</span></div>
+      <label for="FL">Front left <output id="FL-value">0 mm</output></label><input class="wheel-input" id="FL" type="range" min="-330" max="300" step="1" value="0">
+      <label for="FR">Front right <output id="FR-value">0 mm</output></label><input class="wheel-input" id="FR" type="range" min="-330" max="300" step="1" value="0">
+      <label for="RL">Rear left <output id="RL-value">0 mm</output></label><input class="wheel-input" id="RL" type="range" min="-150" max="300" step="1" value="0">
+      <label for="RR">Rear right <output id="RR-value">0 mm</output></label><input class="wheel-input" id="RR" type="range" min="-150" max="300" step="1" value="0">
+      <label for="steer">Steering <output id="steer-value">0°</output></label><input id="steer" type="range" min="-30" max="30" step="1" value="0">
+    </fieldset>
+    <fieldset><legend>Look closer</legend><div class="segmented"><button data-display="full" class="active">Full car</button><button data-display="ghost">Ghost body</button><button data-display="rig">Rig only</button></div>
+      <label class="check"><input id="joints" type="checkbox"> Show pivots and links</label>
+      <label class="check"><input id="wheels" type="checkbox" checked> Show wheels</label>
+      <label class="check"><input id="turntable" type="checkbox"> Rotate view</label>
+      <button id="reset" class="reset">Reset to ride height</button>
+    </fieldset>
+    <p class="model-note">Rear droop stops at 150 mm to preserve the authored link lengths. This is a kinematic inspection; rack travel, hose flex and collision limits are not simulated.</p>
+  </aside>
+  <footer><span id="rig-status">Loading rig geometry</span><span>GLX PRO · RIG REV 02</span></footer>
+</main>
+<script type="module" src="./js/suspension-viewer.js?v=20261103-r2"></script>
+</body>
+</html>

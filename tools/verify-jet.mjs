@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const out=path.join(root,'artifacts/vehicles/kestrel/viewer');fs.mkdirSync(out,{recursive:true});
+const out=process.env.DUNES_OUTPUT||path.join(root,'artifacts/vehicles/kestrel/viewer');fs.mkdirSync(out,{recursive:true});
+const base=(process.env.DUNES_URL||'http://127.0.0.1:5189').replace(/\/$/,'');
 const browser=await chromium.launch({channel:'chrome',headless:true,args:['--ignore-gpu-blocklist']});
 const report={checks:[],errors:[],warnings:[],failedRequests:[],screenshots:[]};
 try {
@@ -16,7 +17,7 @@ try {
   page.on('console',m=>{if(m.type()==='error')report.errors.push(m.text());if(m.type()==='warning')report.warnings.push(m.text());});
   page.on('response',r=>{if(r.status()>=400)report.failedRequests.push(`${r.status()} ${r.url()}`);});
   page.on('requestfailed',r=>report.failedRequests.push(r.url()));
-  await page.goto('http://127.0.0.1:5189/jet.html',{waitUntil:'domcontentloaded'});
+  await page.goto(base+'/jet.html',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.__jetViewer?.ready&&window.__jetViewer.frames>5,null,{timeout:90000});
   const shot=async name=>{await page.screenshot({path:path.join(out,name+'.png')});report.screenshots.push(name+'.png');};
   const settle=async()=>page.waitForTimeout(850);
@@ -53,7 +54,7 @@ try {
   }
   await shot('articulated');
   report.stowedGearBounds=await page.evaluate(async()=>{
-    const THREE=await import('/vendor/three.module.js');
+    const THREE=await import(new URL('vendor/three.module.js',location.href).href);
     return Object.fromEntries(['GearMain_L','GearMain_R','GearNose'].map(name=>{
       const box=new THREE.Box3().setFromObject(window.__jetViewer.nodes.get(name),true);
       return [name,{min:box.min.toArray(),max:box.max.toArray()}];
