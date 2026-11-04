@@ -4,7 +4,7 @@
 - Play: https://tront.xyz/dunes/
 - Suspension: https://tront.xyz/dunes/suspension.html
 - Kestrel: https://tront.xyz/dunes/jet.html
-- Release: 0.3.0
+- Release: 0.4.0
 
 The `Publish Dunes` GitHub Actions workflow packages `public/` and `assets/`
 and deploys the result to GitHub Pages on each push to `main`. The project uses
@@ -15,16 +15,18 @@ the same subdirectory routing, serve `artifacts/pages/` with a static server
 and open `/dunes/`. Run `npm ci` first; the build uses Node 22, pinned esbuild and
 Trystero packages. Browser verification uses installed Chrome and Playwright.
 
-Only the generated build sets `STATIC_HOSTING = true`. It selects Trystero
-multiplayer and reads a generated audio manifest instead of the Node directory
-listing. `npm start` retains the original Node relay and 48-hour track store;
-append `?net=p2p` to test peer networking on that server.
+Only the generated build sets `STATIC_HOSTING = true`; this selects a generated
+audio manifest instead of the Node directory listing. Both builds use Trystero
+by default. `npm start` retains the original Node relay and 48-hour track store
+as an explicit development option at `?net=server`.
 
 ## Multiplayer
 
 Trystero 0.26.0 is bundled locally with its MIT licenses and dependency notices.
 Nostr relays provide peer discovery; game traffic uses WebRTC data channels.
-The app ID is `xyz.tront.dunes.v1`. The default room is `public`; `?room=NAME`
+The app ID is `xyz.tront.dunes.v1`. Every ordinary visit automatically joins
+`global`, with no join button or invitation. `?room=public` aliases global for
+older links. `?room=NAME`
 selects a separate room (letters, numbers, underscores and hyphens, 48 characters
 maximum). A named room is a shared meeting place, not an authentication gate.
 
@@ -35,6 +37,9 @@ and simultaneous changes converge. Joining peers request nearby track tiles
 from one connected donor. Track history is bounded by what active peers still
 hold; leaving all browsers loses it. This does not recreate the disk-backed
 48-hour store. AI cars retain the original client-local simulation.
+
+Names update in place through control messages. Renaming keeps the peer ID,
+car and current session, and updates the other drivers' labels and roster.
 
 No TURN service is configured. Public discovery availability and restrictive
 NAT/firewall combinations can affect connection success; solo driving continues.
@@ -49,6 +54,12 @@ exchange, keyboard driving, shared settings, car changes, tracks, room isolation
 reload/rejoin and leaving. Set `DUNES_URL` to the deployed URL and `DUNES_PHASE`
 to `live` to write a separate receipt. No mock signaling or peer connection is
 substituted. Browser RTC statistics are captured with the report.
+
+`npm run polish:verify` uses the ordinary global URL and two isolated Chrome
+contexts. It checks automatic entry, live name changes, keyboard/pointer GPU
+controls, compact layout, source mirror geometry and zero runtime Canvas2D text
+calls. Set `DUNES_OUTPUT` for separate local and live evidence. It does not change
+global world settings. See [GPU UI notes](GPU-UI.md).
 
 The existing vehicle, jet and suspension verifiers accept `DUNES_URL` and
 `DUNES_OUTPUT` for subdirectory deployment checks and separate release receipts.

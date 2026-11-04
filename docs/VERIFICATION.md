@@ -58,6 +58,7 @@ The normal local game retains its bundled upstream GLX model. The verifier
 substitutes the newly generated GLB and JSON in its isolated browser. Original
 modeling and integration into Jet Game or Dustline are later milestones.
 
-Dunes has a separate local Git repo with preserved upstream history. No new
-GitHub hosting remote or public deployment has been created. The intended public
-route remains https://tront.xyz/dunes/.
+Dunes has a separate Git repo with preserved upstream history. It is now hosted
+at https://github.com/TrentSterling/dunes and published at https://tront.xyz/dunes/.
+See [deployment verification](DEPLOYMENT.md) and [GPU UI verification](GPU-UI.md)
+for the later web releases; the vehicle-pipeline evidence above is preserved.

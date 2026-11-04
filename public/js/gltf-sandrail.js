@@ -20,13 +20,12 @@ export const CARS = {
   // the physics was tuned with (base track 2.04 / 2.00 m), and the CG lowered in proportion to the narrower
   // track / shorter wheelbase so the car is no easier to tip or wheelie than the tuned one.
   // stretchFront: move the front wheels, front suspension and nose forward by this much (m); see stretchFront below
-  // sightNotch: lower the bodywork in the driver's sightlines to the front tyre tops (see sightNotch below)
   // maxSteerVis: visual cap (rad) of a front wheel's
   // steer when its suspension is compressed: at full lock (inner wheel 0.62 rad) and full bump the tyre would
   // touch the nose by ~9 mm; at ride height it clears by 36 mm, so the cap fades in from 5 to 20 cm of bump
-  pro: { label: 'GLX pro (orange)', file: 'assets/pro_sandrail/sandcar.glb', family: 'sandcar', color: '#ff5a0d', look: 'trx', keepRoll: true, maxSteerVis: 0.52, sightNotch: true, stretchFront: 0.25 },
+  pro: { label: 'GLX pro (orange)', file: 'assets/pro_sandrail/sandcar.glb', family: 'sandcar', color: '#ff5a0d', look: 'trx', keepRoll: true, maxSteerVis: 0.52, stretchFront: 0.25 },
   // an earlier GLX pro build (assets/pro_sandrail2), same sandcar contract, added for side-by-side testing
-  pro2: { label: 'GLX pro 2 (orange)', file: 'assets/pro_sandrail2/sandcar.glb', family: 'sandcar', color: '#ff7a2d', keepRoll: true, sightNotch: true },
+  pro2: { label: 'GLX pro 2 (orange)', file: 'assets/pro_sandrail2/sandcar.glb', family: 'sandcar', color: '#ff7a2d', keepRoll: true },
 };
 
 // ---------- look: baked ambient occlusion + per-car material tuning ----------
@@ -528,7 +527,6 @@ function prepare(id, scene, phys) {
   ]);
   const eyeNode = find('DriverEye');
   const eye = eyeNode ? toBody(eyeNode.getWorldPosition(new THREE.Vector3())) : new THREE.Vector3(bw[0].x * 0.33, 1.3, (zf + zr) / 2 + 0.2);
-  if (def.sightNotch) sightNotch(find('Chassis_Mesh'), toBody, eye, wheels.slice(0, 2).map((w, i) => ({ c: bw[i], r: w.radius, w: w.width })));
   scene.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = true; o.receiveShadow = true;
@@ -572,49 +570,8 @@ function stretchFront(scene, phys, dz, fz) {
   }
 }
 
-// sightNotch: from the driver's eye the dash cowl, the nose top and the side-panel tops hid the front tyres
-// by ~9 cm. Bodywork just above each eye -> tyre-top sightline is pressed down below it (fully within ~11 deg,
-// tapering to nothing ~21 deg above, fading out ~7 deg either side of the tread), so the top 7 cm of both tyres
-// show over the dash. Only that strip 0.6-1.6 m ahead moves (mirrors, eye-height parts and the rest stay put).
-function sightNotch(chassis, toBody, eye, tyres) {
-  if (!chassis) return;
-  const E = new THREE.Vector3(eye.x, eye.y + 0.03, eye.z); // main.js puts the cockpit camera 3 cm above DriverEye
-  const SHOW = 0.07, AZ = 0.12, B1 = 0.20, B2 = 0.36, DROP = 0.006, NEAR = 0.62;
-  const T = tyres.map(({ c, r, w }) => {
-    const az = [-1, 1].map(s => Math.atan2(c.x + s * w * 0.85 - E.x, c.z - E.z));
-    const hd = Math.hypot(c.x - E.x, c.z - E.z);
-    return { az0: Math.min(...az) - AZ, az1: Math.max(...az) + AZ, el: Math.atan2(c.y + r - SHOW - E.y, hd), hd: hd - r * 0.6 };
-  });
-  chassis.updateMatrixWorld(true);
-  const v = new THREE.Vector3(), inv = new THREE.Matrix4();
-  chassis.traverse((o) => {
-    if (!o.isMesh) return;
-    const pos = o.geometry.attributes.position; inv.copy(o.matrixWorld).invert();
-    let moved = false;
-    for (let k = 0; k < pos.count; k++) {
-      const b = toBody(v.fromBufferAttribute(pos, k).applyMatrix4(o.matrixWorld));
-      // the mirrors (~0.55 m ahead) and anything at eye height are left alone
-      const wy = Math.min(1, (E.y - 0.02 - b.y) / 0.04);
-      if (b.z - E.z < NEAR || wy <= 0) continue;
-      const hd = Math.hypot(b.x - E.x, b.z - E.z), az = Math.atan2(b.x - E.x, b.z - E.z), el = Math.atan2(b.y - E.y, hd);
-      let newEl = el;
-      for (const t of T) {
-        if (hd > t.hd) continue;
-        const wa = Math.min(1, az < t.az0 ? 1 - (t.az0 - az) / AZ : az > t.az1 ? 1 - (az - t.az1) / AZ : 1);
-        const line = t.el - DROP, top1 = t.el + B1, top2 = t.el + B2;
-        if (wa <= 0 || el <= line || el >= top2) continue;
-        // monotonic remap: (line, top1) -> line, (top1, top2) -> (line, top2), so nothing folds over
-        const tgt = el < top1 ? line : line + (el - top1) / (top2 - top1) * (top2 - line);
-        newEl = Math.min(newEl, el + (tgt - el) * wa * wy);
-      }
-      if (newEl < el) {
-        b.y = E.y + Math.tan(newEl) * hd;
-        v.copy(toBody(b)).applyMatrix4(inv); pos.setXYZ(k, v.x, v.y, v.z); moved = true;
-      }
-    }
-    if (moved) { pos.needsUpdate = true; o.geometry.computeBoundingBox(); o.geometry.computeBoundingSphere(); }
-  });
-}
+// Preserve authored cockpit and mirror geometry. The former sightline notch
+// deformed rigid mirror housings/glass asymmetrically before any driving.
 
 // ---------- per-car instance ----------
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3();

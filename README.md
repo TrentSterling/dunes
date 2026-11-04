@@ -14,10 +14,17 @@ integration references. The buggy pipeline is verified, and the first original
 scripted jet is **Kestrel 01**, with its own Three.js inspection viewer.
 
 The public game supports solo driving, computer sandrails and **Trystero
-multiplayer**. Open the same URL to meet in the public room, or share a named
+multiplayer**. Opening the game automatically joins the global lobby. No room
+button or invitation is needed. Optionally share a named
 room such as `https://tront.xyz/dunes/?room=trent-and-friends`. Cars, world settings
 and tire tracks are shared directly between connected peers. Tracks are kept in
 the active browsers; the hosted game has no permanent track server.
+
+The driving game's HUD, menus, driver labels, name editor and live cockpit
+displays use GPU glyphs. Press **P** to rename without restarting or reconnecting,
+or use **M > Driver > Edit name**. The driver-side mirror's startup distortion
+is fixed; it came from a cockpit mesh adjustment, not a damage system.
+See [UI implementation and verification](docs/GPU-UI.md).
 
 The web release also
 includes the [suspension viewer](https://tront.xyz/dunes/suspension.html) and

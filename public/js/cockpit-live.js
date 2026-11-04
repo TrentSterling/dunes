@@ -3,13 +3,15 @@
 //    (one small render target per glass, one glass re-rendered per frame in turn, driver's arms left out).
 //    Outside the cockpit camera, or with opts.mirrorsLive false, the baked mirror images are shown;
 //  - the race dash ('Interior screen dash') and the DuneNav chart plotter ('Interior screen lowrance')
-//    are canvas screens drawn from the car's state (speed, gear, rpm, boost, heading, track, elevation);
+//    are GPU glyph screens drawn from the car's state (speed, gear, rpm, boost, heading, track, elevation);
 //  - the cabin fill lights of the model's look (LOOKS[look].cabin / cabin2, evaluated in the car shaders), and at
 //    night the dim map lamp above the wheel that takes the first one's place (LOOKS[look].nightCabin).
 // Everything is per instance: the player's car gets its own copies of the materials and geometries it
 // changes, so computer cars of the same model keep the static model.
 import * as THREE from 'three';
 import { CABIN } from './gltf-sandrail.js';
+import { GlyphSurface } from './gpu-ui.js';
+import { drawDash, drawNavigator } from './cockpit-display.js';
 
 export const LAYER_ARMS = 1;     // driver's arms: main camera only (not in the mirrors)
 export const LAYER_MIRROR = 2;   // mirror glass: main camera only (never into its own render target)
@@ -206,8 +208,9 @@ export class CockpitLive {
       const w = want[o.material?.name];
       if (!w || !o.material.emissiveMap) return;
       if (!made.has(o.material)) {
-        const cv = document.createElement('canvas'); cv.width = w[0]; cv.height = w[1];
-        const tex = new THREE.CanvasTexture(cv);
+        const target=new THREE.WebGLRenderTarget(w[0],w[1],{depthBuffer:false});
+        const tex=target.texture;tex.generateMipmaps=false;
+        const surface=new GlyphSurface(this.opts.renderer,this.opts.atlas,{target,capacity:5000});
         const t0 = o.material.emissiveMap;
         tex.flipY = t0.flipY; tex.colorSpace = THREE.SRGBColorSpace; tex.channel = t0.channel;
         tex.offset.copy(t0.offset); tex.repeat.copy(t0.repeat); tex.rotation = t0.rotation; tex.center.copy(t0.center);
@@ -218,7 +221,7 @@ export class CockpitLive {
         m.emissiveMap = tex;
         if (m.map === t0) m.map = null;
         made.set(o.material, m);
-        this.screens[w[2]] = { cv, g: cv.getContext('2d'), tex, mat: m, mat0: o.material, meshes: [], t: 1e9 };
+        this.screens[w[2]] = { surface,tex,mat:m,mat0:o.material,meshes:[],t:1e9 };
       }
       const s = Object.values(this.screens).find(s => s.mat0 === o.material);
       s.meshes.push(o);
@@ -286,130 +289,15 @@ export class CockpitLive {
     // screens are only drawn while someone can read them
     if (!s.cockpit) return;
     const d = this.screens.dash, lw = this.screens.lowrance;
-    if (d && (d.t += dt) >= 1 / 15) { d.t = 0; drawDash(d.g, d.cv.width, d.cv.height, s, this.boost); d.tex.needsUpdate = true; }
-    if (lw && (lw.t += dt) >= 0.2) { lw.t = 0; drawLowrance(lw.g, lw.cv.width, lw.cv.height, s, this.opts.getRadar?.(), this.trail, this.odo); lw.tex.needsUpdate = true; }
+    if (d && (d.t += dt) >= 1 / 15) { d.t = 0; drawDash(d.surface,s,this.boost); }
+    if (lw && (lw.t += dt) >= 0.2) { lw.t = 0; drawNavigator(lw.surface,s,this.opts.getRadar?.(),this.trail,this.odo); }
   }
 
   dispose() {
     this.setActive(false);
     for (const mi of this.mirrors) { for (const pc of mi.pieces) pc.rt?.dispose(); mi.g.dispose(); for (const m of mi.live) m.dispose(); }
-    for (const s of Object.values(this.screens)) { for (const o of s.meshes) o.material = s.mat0; s.tex.dispose(); s.mat.dispose(); }
+    for (const s of Object.values(this.screens)) { for (const o of s.meshes) o.material = s.mat0; s.surface.dispose(); s.mat.dispose(); }
     CABIN.uCabinCol.value.setRGB(0, 0, 0);
     CABIN.uCabinCol2.value.setRGB(0, 0, 0);
   }
-}
-
-// ------------------------------------------------------------------ race dash (screen_dash.png layout)
-function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
-const FONT = 'Inter, "DejaVu Sans", Arial, sans-serif';
-
-function drawDash(g, W, H, s, boost) {
-  const k = W / 1024;
-  g.setTransform(k, 0, 0, k, 0, 0);
-  g.fillStyle = '#07080b'; g.fillRect(0, 0, 1024, 512);
-  // shift lights: 0..8 k rpm, green -> yellow from 4.8 k -> red from 6.6 k
-  const rpm = Math.max(0, s.rpm || 0), N = 40;
-  for (let i = 0; i < N; i++) {
-    const r0 = i / N * 8000, x = 40 + i * 23.6, h = 28 + i * 0.25;
-    const col = r0 < 4800 ? [64, 255, 96] : r0 < 6600 ? [255, 230, 40] : [255, 40, 30];
-    const on = rpm > r0 + 50;
-    g.fillStyle = on ? `rgb(${col})` : `rgba(${col.map(c => Math.round(c * 0.16))},1)`;
-    g.fillRect(x, 92 - h, 20, h);
-  }
-  g.fillStyle = '#c8ccd2'; g.font = `600 17px ${FONT}`; g.textAlign = 'center';
-  for (let i = 0; i <= 8; i++) g.fillText(String(i), 40 + i * 118, 116);
-  g.fillStyle = '#4a4e57'; g.fillRect(30, 128, 964, 2);
-  // speed (left), gear (orange box), rpm (right)
-  const mph = Math.round(Math.abs(s.speed || 0) * 2.23694);
-  g.fillStyle = '#b8bcc4'; g.font = `700 22px ${FONT}`; g.textAlign = 'left';
-  g.fillText('SPEED', 60, 170); g.fillText('RPM', 650, 170);
-  g.fillText('MPH', 322, 352);
-  g.fillStyle = '#ffffff'; g.font = `800 150px ${FONT}`; g.textAlign = 'right';
-  g.fillText(String(mph), 378, 308, 300);
-  g.fillText(String(Math.round(rpm / 10) * 10), 968, 308, 330);
-  g.strokeStyle = '#ff6a1a'; g.lineWidth = 5; rr(g, 414, 142, 196, 238, 16); g.stroke();
-  g.fillStyle = '#ff8a2a'; g.font = `700 22px ${FONT}`; g.textAlign = 'center'; g.fillText('GEAR', 512, 168);
-  const gear = s.gear === -1 ? 'R' : s.gear === 0 ? 'N' : String(s.gear ?? 1);
-  g.fillStyle = '#ffffff'; g.font = `900 190px ${FONT}`; g.fillText(gear, 512, 344, 170);
-  g.fillStyle = '#ff9a40'; g.font = `700 24px ${FONT}`; g.textAlign = 'right';
-  g.fillText(`BOOST ${Math.max(0, boost).toFixed(1)} PSI`, 968, 352);
-  // status dots: lights / traction / check
-  [['#33e7ff', 1], ['#1f8a2a', 0.35], ['#8a2a1f', 0.35]].forEach(([c, a], i) => { g.globalAlpha = a; g.fillStyle = c; g.beginPath(); g.arc(58 + i * 34, 364, 12, 0, 7); g.fill(); });
-  g.globalAlpha = 1;
-  // engine cells
-  const t = performance.now() / 1000, load = Math.min(1, rpm / 7000);
-  const cells = [['WATER', '°F', 188 + 14 * load + Math.sin(t * 0.05) * 2], ['OIL P', 'PSI', 22 + 52 * load], ['OIL T', '°F', 214 + 16 * load],
-    ['FUEL', '%', 74], ['TRANS', '°F', 176 + 10 * load], ['VOLTS', 'V', 14.1 - 0.2 * load]];
-  cells.forEach(([lab, unit, val], i) => {
-    const x = 36 + i * 161;
-    g.fillStyle = '#12141a'; rr(g, x, 398, 150, 92, 8); g.fill();
-    g.strokeStyle = '#3a3e48'; g.lineWidth = 2; rr(g, x, 398, 150, 92, 8); g.stroke();
-    g.fillStyle = '#c8ccd2'; g.font = `700 17px ${FONT}`; g.textAlign = 'left'; g.fillText(lab, x + 11, 420);
-    g.font = `600 15px ${FONT}`; g.fillText(unit, x + 11, 480);
-    g.fillStyle = lab === 'FUEL' ? '#7dff8a' : '#ffffff'; g.font = `800 44px ${FONT}`; g.textAlign = 'right';
-    g.fillText(lab === 'VOLTS' ? val.toFixed(1) : String(Math.round(val)), x + 140, 482);
-  });
-  g.setTransform(1, 0, 0, 1, 0, 0);
-}
-
-// ------------------------------------------------------------------ DuneNav chart plotter (screen_lowrance.png layout)
-function drawLowrance(g, W, H, s, radar, trail, odo) {
-  const k = W / 1024;
-  g.setTransform(k, 0, 0, k, 0, 0);
-  g.fillStyle = '#1b1d22'; g.fillRect(0, 0, 1024, 640);
-  // map pane: north-up chart around the car
-  const mx = 0, my = 40, mw = 640, mh = 556;
-  g.save();
-  g.beginPath(); g.rect(mx, my, mw, mh); g.clip();
-  g.fillStyle = '#e8d7a8'; g.fillRect(mx, my, mw, mh);
-  const range = 450;                  // metres across the pane width / 2
-  const ppm = mw / (2 * range);
-  const cx = mx + mw / 2, cy = my + mh / 2;
-  if (radar?.relief && s.pos) {
-    const half = radar.terrain.fineSize / 2, m = radar.reliefM;
-    const sx = (s.pos.x - range + half) / m, sy = (s.pos.z - range * mh / mw + half) / m, sw = 2 * range / m, sh = 2 * range * mh / mw / m;
-    g.globalAlpha = 0.85; g.imageSmoothingEnabled = true;
-    g.filter = 'sepia(0.55) brightness(1.25) contrast(1.1)';
-    g.drawImage(radar.relief, sx, sy, sw, sh, mx, my, mw, mh);
-    g.filter = 'none'; g.globalAlpha = 1;
-  }
-  // track
-  if (s.pos && trail.length > 1) {
-    g.strokeStyle = '#2f6df0'; g.lineWidth = 7; g.lineJoin = 'round'; g.beginPath();
-    trail.forEach(([x, z], i) => { const px = cx + (x - s.pos.x) * ppm, py = cy + (z - s.pos.z) * ppm; i ? g.lineTo(px, py) : g.moveTo(px, py); });
-    g.lineTo(cx, cy); g.stroke();
-  }
-  // car arrow (heading), north marker, scale bar
-  const hd = s.fwd ? Math.atan2(s.fwd.x, -s.fwd.z) : 0;
-  g.save(); g.translate(cx, cy); g.rotate(hd);
-  g.fillStyle = '#111'; g.beginPath(); g.moveTo(0, -30); g.lineTo(17, 18); g.lineTo(0, 8); g.lineTo(-17, 18); g.closePath(); g.fill();
-  g.restore();
-  g.fillStyle = '#e8261b'; g.beginPath(); g.moveTo(600, 58); g.lineTo(612, 92); g.lineTo(588, 92); g.closePath(); g.fill();
-  g.fillStyle = '#111'; g.font = `700 20px ${FONT}`; g.textAlign = 'center'; g.fillText('N', 600, 112);
-  g.fillStyle = '#111'; g.fillRect(16, 556, 120, 6); g.textAlign = 'left'; g.font = `700 18px ${FONT}`; g.fillText('0.1 mi', 16, 548);
-  g.restore();
-  // top / bottom bars
-  g.fillStyle = '#111317'; g.fillRect(0, 0, 1024, 40); g.fillRect(0, 596, 1024, 44);
-  g.fillStyle = '#ffffff'; g.font = `800 24px ${FONT}`; g.textAlign = 'left'; g.fillText('DUNENAV', 14, 29);
-  g.font = `500 22px ${FONT}`; g.textAlign = 'center'; g.fillStyle = '#d8dce4'; g.fillText('Chart  |  GLAMIS DUNES', 512, 28);
-  const tod = s.tod ?? 15, hh = Math.floor(tod), mm = Math.floor((tod - hh) * 60);
-  g.font = `700 24px ${FONT}`; g.textAlign = 'right'; g.fillStyle = '#ffffff'; g.fillText(`${hh}:${String(mm).padStart(2, '0')}`, 1010, 29);
-  g.font = `600 20px ${FONT}`; g.textAlign = 'center'; g.fillStyle = '#e8ecf2';
-  ['HOME', 'CHART', 'NAV', 'WAYPTS', 'TRACKS', 'MENU'].forEach((t, i) => g.fillText(t, 85 + i * 171, 625));
-  // data tiles
-  const deg = Math.round(((hd * 180 / Math.PI) % 360 + 360) % 360);
-  const tiles = [['SPEED', (Math.abs(s.speed || 0) * 2.23694).toFixed(1), 'mph'], ['HEADING', `${deg}°`, 'M'],
-    ['ODOMETER', (odo / 1609.34).toFixed(1), 'mi'], ['ELEVATION', String(Math.round((s.pos?.y ?? 0) * 3.281)), 'ft']];
-  tiles.forEach(([lab, val, unit], i) => {
-    const y = 54 + i * 120;
-    g.fillStyle = '#172033'; rr(g, 650, y, 364, 112, 6); g.fill();
-    g.fillStyle = '#9fb8e8'; g.font = `700 20px ${FONT}`; g.textAlign = 'left'; g.fillText(lab, 662, y + 26);
-    g.fillStyle = '#ffffff'; g.font = `800 64px ${FONT}`; g.textAlign = 'right'; g.fillText(val, 952, y + 98);
-    g.fillStyle = '#9fb8e8'; g.font = `700 20px ${FONT}`; g.fillText(unit, 1002, y + 98);
-  });
-  g.fillStyle = '#e8ecf2'; g.font = `600 18px ${FONT}`; g.textAlign = 'left';
-  const lat = 32.97 + (s.pos ? -s.pos.z / 111000 : 0), lon = -115.08 + (s.pos ? s.pos.x / 93000 : 0);
-  const dm = (v) => `${Math.floor(Math.abs(v))}°${((Math.abs(v) % 1) * 60).toFixed(3)}'`;
-  g.fillText(`N ${dm(lat)}   W ${dm(lon)}`, 662, 588);
-  g.setTransform(1, 0, 0, 1, 0, 0);
 }

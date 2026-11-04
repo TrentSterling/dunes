@@ -1,14 +1,18 @@
 // Radar: heading-up minimap with a shaded-relief view of the dunes and a blip
 // for every computer-driven sandrail and online player.
 import { dune } from './terrain-data.js';
+import * as THREE from 'three';
 
 export class Radar {
   constructor(canvas, terrain) {
-    this.cv = canvas;
+    this.cv = canvas || document.createElement('canvas');
+    canvas=this.cv;canvas.width=canvas.height=384;
     this.ctx = canvas.getContext('2d');
     this.range = 600; // metres from centre to edge
     this.terrain = terrain;
     this.buildRelief();
+    this.texture=new THREE.CanvasTexture(canvas);this.texture.colorSpace=THREE.SRGBColorSpace;this.texture.flipY=false;
+    this.reliefTexture=new THREE.CanvasTexture(this.relief);this.reliefTexture.colorSpace=THREE.SRGBColorSpace;this.reliefTexture.flipY=false;
   }
 
   buildRelief() {
@@ -39,9 +43,8 @@ export class Radar {
   // me: { x, z, fx, fz }, blips: [{ x, z, color, kind }]
   draw(me, blips) {
     const cv = this.cv, g = this.ctx;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const css = cv.clientWidth;
-    if (cv.width !== Math.round(css * dpr)) { cv.width = cv.height = Math.round(css * dpr); }
+    // Keep the uploaded texture dimensions fixed, including on low-DPI screens.
+    const dpr = 2;
     const W = cv.width, R = W / 2 - 3 * dpr, cx = W / 2, cy = W / 2;
     const s = R / this.range; // px per metre
     const rot = -Math.PI / 2 - Math.atan2(me.fz, me.fx); // heading-up
@@ -99,11 +102,12 @@ export class Radar {
     // N marker on the rim
     const na = rot - Math.PI / 2; // world north is -z
     const nx = Math.cos(na) * (R - 10 * dpr), ny = Math.sin(na) * (R - 10 * dpr);
-    g.font = `bold ${11 * dpr}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = '#ffcf7a'; g.fillText('N', nx, ny);
+    // The HUD's N marker is a GPU glyph; this offscreen canvas contains only map geometry.
+    this.north={x:nx/(W/2),y:ny/(W/2)};
     g.restore();
     // rim
     g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 2 * dpr;
     g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke();
+    this.texture.needsUpdate=true;
   }
 }

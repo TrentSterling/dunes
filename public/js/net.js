@@ -1,10 +1,11 @@
 // Multiplayer client: sends our car state at 20 Hz, interpolates other cars.
-import { STATIC_HOSTING } from './runtime-config.js';
 import { PeerClient } from './net-peer.js';
 
 export class NetClient {
   constructor(handlers) {
-    if (STATIC_HOSTING || new URLSearchParams(location.search).get('net') === 'p2p') return new PeerClient(handlers);
+    // Every ordinary visit joins the same public room, including local previews.
+    // The legacy relay remains an explicit development option.
+    if (new URLSearchParams(location.search).get('net') !== 'server') return new PeerClient(handlers);
     this.h = handlers;
     this.id = null;
     this.ws = null;
@@ -31,6 +32,7 @@ export class NetClient {
       else if (m.t === 'state') this.h.onState(m.id, m.s);
       else if (m.t === 'setting') this.h.onSetting?.(m.key, m.value, m.name);
       else if (m.t === 'car') this.h.onCar?.(m.id, m.car);
+      else if (m.t === 'name') this.h.onName?.(m.id, m.name);
       else if (m.t === 'chat') this.h.onChat?.(m.name, m.text);
     };
   }
@@ -45,6 +47,11 @@ export class NetClient {
   setCar(car) {
     this.car = car;
     if (this.connected) this.ws.send(JSON.stringify({ t: 'car', car }));
+  }
+
+  setName(name) {
+    this.name=name;
+    if(this.connected)this.ws.send(JSON.stringify({t:'name',name}));
   }
 
   update(dt, getState) {

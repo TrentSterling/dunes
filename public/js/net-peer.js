@@ -2,6 +2,7 @@ import { joinRoom, selfId, getRelaySockets } from '../vendor/trystero.js';
 import { REC, tileKey, nowS, KEEP_S } from './track-log.js';
 
 const APP_ID = 'xyz.tront.dunes.v1';
+export const DEFAULT_ROOM = 'global';
 const COLORS = [0xb00d12, 0x1450c8, 0xe08a00, 0x18a040, 0x8a20c0, 0xd0d0d0];
 const WORLD_KEYS = new Set(['weather', 'tod', 'night', 'wind', 'gravity', 'grip', 'softness', 'wheelieControl', 'steerAssist', 'aiCount', 'aiSkill']);
 const validValue = v => ['number', 'string', 'boolean'].includes(typeof v) && String(v).length < 40 && (typeof v !== 'number' || Number.isFinite(v));
@@ -15,7 +16,8 @@ export class PeerClient {
     this.h = handlers;
     this.id = selfId;
     this.transport = 'trystero';
-    this.roomId = (new URLSearchParams(location.search).get('room') || 'public').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 48) || 'public';
+    const requested=new URLSearchParams(location.search).get('room');
+    this.roomId = (!requested||requested==='public'?DEFAULT_ROOM:requested).replace(/[^a-zA-Z0-9_-]/g, '-').slice(0,48)||DEFAULT_ROOM;
     this.peers = new Map();
     this.versions = {};
     this.clock = 0;
@@ -64,7 +66,7 @@ export class PeerClient {
   status() {
     this.connected = [...this.peers.values()].some(peer => peer.ready);
     const count = [...this.peers.values()].filter(peer => peer.ready).length;
-    this.h.onStatus?.(this.connected, `Room ${this.roomId} · ${count ? `${count + 1} drivers` : 'waiting for drivers'}`);
+    this.h.onStatus?.(this.connected, `${this.roomId===DEFAULT_ROOM?'Global lobby':'Room '+this.roomId} / ${count+1} ${count?'drivers':'driver'}`);
   }
 
   send(action, data, target) {
@@ -101,6 +103,9 @@ export class PeerClient {
         this.status();
       }
       this.mergeVersions(message.versions);
+    } else if (message.t === 'name') {
+      const name=String(message.name||'Driver').replace(/[\x00-\x1f\x7f]/g,'').trim().slice(0,24)||'Driver';
+      this.peers.get(peerId).name=name;this.h.onName?.(peerId,name);
     } else if (message.t === 'setting') {
       this.mergeVersions(message.versions, this.peers.get(peerId).name);
     } else if (message.t === 'car') {
@@ -159,6 +164,11 @@ export class PeerClient {
   setCar(car) {
     this.car = car;
     if (this.connected) this.send(this.control, { t: 'car', car });
+  }
+
+  setName(name) {
+    this.name=String(name).trim().slice(0,24)||'Driver';
+    if(this.connected)this.send(this.control,{t:'name',name:this.name});
   }
 
   update(dt, getState) {

@@ -140,6 +140,9 @@ wss.on('connection', (ws) => {
       world[msg.key] = msg.value;
       broadcast({ t: 'setting', key: msg.key, value: msg.value, name: p.name }, id);
       console.log(`  ${p.name} set ${msg.key} = ${msg.value}`);
+    } else if (msg.t === 'name') {
+      p.name=String(msg.name||'Driver').replace(/[\x00-\x1f\x7f]/g,'').trim().slice(0,24)||'Driver';
+      broadcast({t:'name',id,name:p.name},id);
     } else if (msg.t === 'car') {
       p.car = String(msg.car || '').slice(0, 40);
       broadcast({ t: 'car', id, car: p.car }, id);

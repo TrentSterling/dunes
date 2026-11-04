@@ -12,11 +12,14 @@ moving parts. This is a separate local repository at C:/trontstack/dunes.
 - `origin` is TrentSterling/dunes. Main publishes the static game and viewers to
   https://tront.xyz/dunes/ through .github/workflows/pages.yml.
 - `npm run build:pages` packages public/ and assets/ into artifacts/pages/dunes/.
-  The hosted build uses Trystero 0.26.0 for multiplayer. npm start retains the
-  Node relay; use ?net=p2p locally to test Trystero. See docs/DEPLOYMENT.md.
+  Both hosted and local builds automatically join Trystero's global room.
+  npm start also exposes the legacy Node relay via ?net=server.
+  See docs/DEPLOYMENT.md and docs/GPU-UI.md.
 - Browser verification must distinguish two local Chrome contexts using live
   signaling from separate-device or restrictive-NAT coverage. Preserve that
   distinction in release claims. npm run multiplayer:verify uses a unique room.
+- `npm run polish:verify` tests normal URLs joining global, live rename, GPU
+  controls, no DOM/Canvas2D text, compact layout, and original mirror geometry.
 - Jet Game and Dustline are references; do not change their repos from this task.
 - Preserve upstream history, license, bundled models and source artwork.
 - Build through tools/vehicle_pipeline.py. Its staged inputs prevent upstream

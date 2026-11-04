@@ -1,293 +1,203 @@
-// In-game menu (M): Controls, Key bindings, Quality, Weather, Teleport and Game tabs built from a schema.
-// Settings are saved in the browser so they stick between sessions.
-
-import { PLACES } from './places.js';
-import { ACTIONS, loadBindings, resetBindings, assign, keyName, padName, padPressed, RESERVED_KEYS } from './controls.js';
-
-const KEY = 'glamis-settings-v1';
-
-export const DEFAULTS = {
-  quality: 'ultra', renderScale: 1, shadows: 'ultra', particles: 1,
-  weather: 'clear', tod: 16.8, night: false, wind: 1,
-  autoTrans: true, wheelieControl: true, steerAssist: true, steerSens: 1, volume: 0.8, camMode: 0, cockpitFov: 78, radarCockpit: 'hud', liveMirrors: true, driverArms: false, invertLook: false,
-  car: 'pro',
-  gravity: 9.81, grip: 1, softness: 1, sandTex: 'all',
-  aiCount: 6, aiSkill: 1, radar: true, radarRange: 600, labels: true, showHelp: true,
-};
-
-// Settings that change the shared world: when one player changes them online,
-// everyone's game follows. (Your car choice and per-PC display/sound/camera stay yours.)
-export const GLOBAL_KEYS = ['weather', 'tod', 'night', 'wind', 'gravity', 'grip', 'softness', 'wheelieControl', 'steerAssist', 'aiCount', 'aiSkill'];
-
-export function loadSettings() {
-  let s = {};
-  try { s = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { s = {}; }
-  // the photo sand texture went from a test patch to the whole map
-  if (s.sandTexV !== 2) { s.sandTex = 'all'; s.sandTexV = 2; }
-  // the new GLX pro rail: start everyone in it once
-  if (s.proCarV !== 1) { s.car = 'pro'; s.proCarV = 1; }
-  // cockpit field of view: back to the wide 78 deg default (58 / 68 were test defaults, never picked by a player)
-  if (s.cockpitFovV !== 3) { if (s.cockpitFov === undefined || [58, 68].includes(Number(s.cockpitFov))) s.cockpitFov = 78; s.cockpitFovV = 3; }
-  return { ...DEFAULTS, ...s };
-}
-export function saveSettings(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode */ } }
-
-const fmtTod = (h) => { const hh = Math.floor(h), mm = Math.round((h % 1) * 60); const ap = hh >= 12 ? 'PM' : 'AM'; return `${((hh + 11) % 12) + 1}:${String(mm).padStart(2, '0')} ${ap}`; };
-
-export const SCHEMA = [
-  { tab: 'Controls', items: [
-    { key: 'autoTrans', label: 'Gearbox', type: 'choice', options: [[true, 'Automatic'], [false, 'Manual (Q / E)']] },
-    { key: 'wheelieControl', label: 'Wheelie control', type: 'choice', options: [[true, 'On'], [false, 'Off (full send)']], hint: 'Key V' },
-    { key: 'steerAssist', label: 'Countersteer assist', type: 'choice', options: [[true, 'On'], [false, 'Off']], hint: 'Key G' },
-    { key: 'steerSens', label: 'Steering speed', type: 'range', min: 0.5, max: 1.8, step: 0.05, fmt: v => Math.round(v * 100) + '%' },
-    { key: 'camMode', label: 'Camera', type: 'choice', options: [[0, 'Chase'], [1, 'Far'], [2, 'Cockpit'], [3, 'Hood'], [4, 'Side']], hint: 'Key C' },
-    { key: 'cockpitFov', label: 'Cockpit field of view', type: 'range', min: 60, max: 90, step: 1, fmt: v => `${v}° (${Math.round(2 * Math.atan(Math.tan(v * Math.PI / 360) * 16 / 9) * 180 / Math.PI)}° wide)`, hint: 'Vertical angle of the cockpit camera' },
-    { key: 'invertLook', label: 'Invert look up/down', type: 'choice', options: [[false, 'Off'], [true, 'On']] },
-    { key: 'volume', label: 'Sound volume', type: 'range', min: 0, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + '%' },
-    { type: 'keys', rows: [
-      ['Mouse', 'Drag to look around, scroll to zoom'], ['M or Esc', 'This menu (controller: Start)'],
-      ['Controller', 'Right stick looks around. Change any key or button in the Key bindings tab.'],
-    ] },
-  ] },
-  { tab: 'Key bindings', items: [{ type: 'bindings' }] },
-  { tab: 'Quality', items: [
-    { key: 'quality', label: 'Graphics preset', type: 'choice', options: [['ultra', 'Ultra (RTX 5090)'], ['high', 'High'], ['low', 'Low']], hint: 'Terrain detail and tire-track resolution. Reloads the game.', reload: true },
-    { key: 'renderScale', label: 'Render resolution', type: 'range', min: 0.5, max: 2, step: 0.25, fmt: v => Math.round(v * 100) + '%', hint: 'Above 100% supersamples for the sharpest image.' },
-    { key: 'shadows', label: 'Shadows', type: 'choice', options: [['off', 'Off'], ['low', 'Low'], ['high', 'High'], ['ultra', 'Ultra']] },
-    { key: 'sandTex', label: 'Photo sand textures', type: 'choice', options: [['off', 'Off'], ['patch', 'Test patch at start'], ['all', 'Everywhere']], hint: 'Poly Haven scanned sand. Turn off for slower PCs.' },
-    { key: 'liveMirrors', label: 'Live mirrors (cockpit)', type: 'choice', options: [[true, 'On'], [false, 'Off']], hint: 'Real reflections in the rear-view mirrors. Turn off for more fps in the cockpit view.' },
-    { key: 'driverArms', label: 'Driver arms (cockpit)', type: 'choice', options: [[true, 'Show'], [false, 'Hide']], hint: 'The driver\'s arms and gloves on the steering wheel in the driver\'s seat view.' },
-    { key: 'particles', label: 'Sand and dust amount', type: 'range', min: 0.25, max: 2, step: 0.25, fmt: v => Math.round(v * 100) + '%' },
-  ] },
-  { tab: 'Weather', items: [
-    { key: 'weather', label: 'Weather', hint: 'Weather, time and wind are shared with all players.', type: 'choice', options: [['clear', 'Clear'], ['hazy', 'Hazy'], ['cloudy', 'Partly cloudy'], ['overcast', 'Overcast'], ['windy', 'Windy'], ['sandstorm', 'Sandstorm']] },
-    { key: 'night', label: 'Night mode', type: 'choice', options: [[false, 'Off'], [true, 'On (moonlight, N for light bars)']], hint: 'Key T steps through the day into night' },
-    { key: 'tod', label: 'Time of day', type: 'range', min: 6.2, max: 19.4, step: 0.1, fmt: fmtTod, lazy: true },
-    { key: 'wind', label: 'Wind strength', type: 'range', min: 0, max: 2, step: 0.1, fmt: v => Math.round(v * 100) + '%' },
-  ] },
-  { tab: 'Teleport', items: [
-    { type: 'actions', key: 'tp', label: 'Hill climbs', list: PLACES.filter(p => p.kind === 'hill').map(p => [p.id, p.name]) },
-    { type: 'actions', key: 'tp', label: 'Bowls', list: PLACES.filter(p => p.kind === 'bowl').map(p => [p.id, p.name]) },
-    { type: 'actions', key: 'tp', label: 'Camps and start', list: PLACES.filter(p => p.kind === 'camp' || p.kind === 'start').map(p => [p.id, p.name]),
-      hint: 'Real Glamis spots from the BLM map. Hill climbs start you at the bottom facing up. Key L jumps to the next one.' },
-  ] },
-  { tab: 'Game', items: [
-    { key: 'gravity', label: 'Gravity', type: 'range', min: 1, max: 20, step: 0.01, fmt: v => `${v.toFixed(2)} m/s² · ${(v / 9.81).toFixed(2)} g`,
-      presets: [[1.62, 'Moon'], [3.71, 'Mars'], [9.81, 'Earth'], [14.7, '1.5 g']], hint: 'Arrow keys fine-tune by 0.01. Shared with all players.' },
-    { key: 'softness', label: 'Sand softness', type: 'range', min: 0.4, max: 2, step: 0.05, fmt: v => Math.round(v * 100) + '%', hint: 'How deep tires sink. Shared with all players.' },
-    { key: 'grip', label: 'Sand grip', type: 'range', min: 0.5, max: 1.5, step: 0.01, fmt: v => Math.round(v * 100) + '%', hint: 'Lower lets the rails slide more. Shared with all players.' },
-    { key: 'car', label: 'Your sandrail', type: 'choice', options: [['pro', 'GLX pro'], ['pro2', 'GLX pro 2'], ['flamerail', 'Flame rail'], ['black', 'Black'], ['blue', 'Blue'], ['green', 'Green'], ['silver', 'Silver'], ['yellow', 'Yellow'], ['trax', 'Trax'], ['classic', 'Classic (built in)']], hint: 'Your Blender models from the assets folder' },
-    { key: 'aiCount', label: 'Computer sandrails', type: 'range', min: 0, max: 12, step: 1, fmt: v => String(v) },
-    { key: 'aiSkill', label: 'Computer driving', type: 'choice', options: [[0.75, 'Cruising'], [1, 'Normal'], [1.3, 'Aggressive']] },
-    { key: 'radar', label: 'Radar', type: 'choice', options: [[true, 'On'], [false, 'Off']] },
-    { key: 'radarCockpit', label: 'Radar in the cockpit', type: 'choice', options: [['hud', 'Screen corner'], ['dash', 'Dash screen only']], hint: 'Cars with a dash GPS screen (GLX pro) always show the map there too' },
-    { key: 'radarRange', label: 'Radar range', type: 'choice', options: [[300, '300 m'], [600, '600 m'], [1200, '1.2 km'], [2500, '2.5 km']] },
-    { key: 'labels', label: 'Name tags', type: 'choice', options: [[true, 'On'], [false, 'Off']] },
-    { key: 'showHelp', label: 'Help panel', type: 'choice', options: [[true, 'On'], [false, 'Off']] },
-  ] },
-];
+import {SCHEMA,saveSettings} from './settings.js';
+import {ACTIONS,loadBindings,resetBindings,assign,keyName,padName,padPressed,RESERVED_KEYS} from './controls.js';
+import {UI_COLORS as C,rgba} from './gpu-ui.js';
+export {SCHEMA,DEFAULTS,GLOBAL_KEYS,loadSettings,saveSettings} from './settings.js';
 
 export class Menu {
-  constructor(root, settings, onChange) {
-    this.root = root; this.s = settings; this.onChange = onChange;
-    this.open = false;
-    this.tab = 0;
-    this.controls = new Map();
-    this.bindings = loadBindings();   // read by the game every frame
-    this.onBindings = null;           // called after a binding changes
-    this.capture = null;
-    addEventListener('keydown', (e) => this._captureKey(e), true);
-    this.build();
+  constructor(ui,settings,onChange){
+    this.ui=ui;ui.menu=this;this.s=settings;this.onChange=onChange;this.open=false;this.tab=0;
+    this.tabs=['Driver',...SCHEMA.map(t=>t.tab)];this.scroll=0;this.maxScroll=0;this.bindings=loadBindings();
+    this.capture=null;this.editor=null;this.notice='';this.focusIndex=-1;this.padPrev={};
   }
-
-  build() {
-    const r = this.root;
-    r.innerHTML = '';
-    const panel = el('div', 'menu-panel');
-    const head = el('div', 'menu-head');
-    head.append(el('div', 'menu-title', 'GLAMIS'));
-    const tabs = el('div', 'menu-tabs');
-    SCHEMA.forEach((t, i) => {
-      const b = el('button', 'menu-tab', t.tab);
-      b.onclick = () => this.showTab(i);
-      tabs.append(b);
-    });
-    head.append(tabs);
-    const close = el('button', 'menu-close', 'Resume');
-    close.onclick = () => this.toggle(false);
-    head.append(close);
-    panel.append(head);
-    this.pages = SCHEMA.map((t) => {
-      const page = el('div', 'menu-page');
-      for (const it of t.items) page.append(this.item(it));
-      panel.append(page);
-      return page;
-    });
-    r.append(panel);
-    this.tabBtns = [...tabs.children];
-    this.showTab(this.tab);
+  toggle(force){this.open=force??!this.open;if(!this.open){this.capture=null;this.editor=null;this.ui.drag=null;}this.onToggle?.(this.open);}
+  showTab(index){this.tab=Math.max(0,Math.min(this.tabs.length-1,index));this.scroll=0;this.capture=null;this.notice='';this.ui.focusId=null;}
+  refresh(){}
+  scrollBy(amount){this.scroll=Math.max(0,Math.min(this.maxScroll,this.scroll+amount));}
+  set(item,value){if(this.s[item.key]===value)return;this.s[item.key]=value;saveSettings(this.s);this.onChange(item.key,value,item);}
+  editName(){
+    const value=this.ui.playerName;
+    this.editor={value,caret:value.length,anchor:0,returnOpen:this.open,keyboard:false,error:''};
+    this.open=true;this.capture=null;this.onToggle?.(true);this.ui.renderer.domElement.focus();
   }
-
-  item(it) {
-    if (it.type === 'actions') {
-      // a list of buttons that do something right away (teleport spots)
-      const box = el('div', 'menu-actions');
-      if (it.label) box.append(el('div', 'menu-label', it.label));
-      const grid = el('div', 'menu-ctl');
-      for (const [id, text] of it.list) { const b = el('button', 'menu-opt', text); b.onclick = () => this.onAction?.(it.key, id); grid.append(b); }
-      box.append(grid);
-      if (it.hint) box.append(el('small', '', it.hint));
-      return box;
-    }
-    if (it.type === 'bindings') return this.bindingsTable();
-    if (it.type === 'keys') {
-      const box = el('div', 'menu-keys');
-      for (const [k, d] of it.rows) { const row = el('div', 'menu-keyrow'); row.append(el('b', '', k), el('span', '', d)); box.append(row); }
-      return box;
-    }
-    const row = el('div', 'menu-row');
-    const lab = el('div', 'menu-label', it.label);
-    if (it.hint) lab.append(el('small', '', it.hint));
-    row.append(lab);
-    const ctl = el('div', 'menu-ctl');
-    if (it.type === 'choice') {
-      const btns = it.options.map(([v, text]) => {
-        const b = el('button', 'menu-opt', text);
-        b.onclick = () => this.set(it, v);
-        ctl.append(b);
-        return [v, b];
-      });
-      this.controls.set(it.key, () => btns.forEach(([v, b]) => b.classList.toggle('on', v === this.s[it.key])));
-    } else if (it.type === 'range') {
-      const inp = document.createElement('input');
-      Object.assign(inp, { type: 'range', min: it.min, max: it.max, step: it.step });
-      const val = el('span', 'menu-val');
-      inp.oninput = () => { val.textContent = it.fmt(+inp.value); if (!it.lazy) this.set(it, +inp.value); };
-      inp.onchange = () => this.set(it, +inp.value);
-      ctl.append(inp, val);
-      const pbtns = (it.presets || []).map(([v, text]) => {
-        const b = el('button', 'menu-opt', text);
-        b.onclick = () => this.set(it, v);
-        return [v, b];
-      });
-      if (pbtns.length) { const pr = el('div', 'menu-presets'); pbtns.forEach(([, b]) => pr.append(b)); ctl.append(pr); }
-      this.controls.set(it.key, () => {
-        inp.value = this.s[it.key]; val.textContent = it.fmt(this.s[it.key]);
-        pbtns.forEach(([v, b]) => b.classList.toggle('on', Math.abs(v - this.s[it.key]) < 1e-6));
-      });
-    }
-    row.append(ctl);
-    this.controls.get(it.key)?.();
-    return row;
+  insert(text){
+    const e=this.editor;if(!e)return;
+    const lo=Math.min(e.caret,e.anchor),hi=Math.max(e.caret,e.anchor);
+    const input=String(text).replace(/[\x00-\x1f\x7f]/g,'').slice(0,24-(e.value.length-(hi-lo)));
+    e.value=e.value.slice(0,lo)+input+e.value.slice(hi);e.caret=e.anchor=lo+input.length;e.error='';
   }
-
-  // ---------- key bindings ----------
-  bindingsTable() {
-    const box = el('div', 'menu-binds');
-    const note = el('div', 'menu-bindnote', 'Click a box, then press the key or controller button for it. Backspace clears it, Esc cancels. M, Esc and Start always open this menu.');
-    const table = el('div', 'menu-bindgrid');
-    this.bindBtns = [];
-    const head = ['Action', 'Key', 'Second key', 'Controller', 'Second controller'];
-    for (const h of head) table.append(el('div', 'menu-bindhead', h));
-    let group = null;
-    for (const a of ACTIONS) {
-      if (a.group !== group) { group = a.group; table.append(el('div', 'menu-bindgroup', group)); }
-      table.append(el('div', 'menu-bindlabel', a.label));
-      for (const [kind, slot] of [['keys', 0], ['keys', 1], ['pad', 0], ['pad', 1]]) {
-        const b = el('button', 'menu-bind');
-        b.onclick = () => this._startCapture(a.id, kind, slot, b);
-        table.append(b);
-        this.bindBtns.push({ id: a.id, kind, slot, b });
-      }
-    }
-    const foot = el('div', 'menu-ctl');
-    const reset = el('button', 'menu-opt', 'Reset all to defaults');
-    reset.onclick = () => { this._stopCapture(); resetBindings(this.bindings); this._refreshBinds(); this.status.textContent = 'Back to the default controls.'; this.onBindings?.(); };
-    this.status = el('small', 'menu-bindstatus', '');
-    foot.append(reset, this.status);
-    box.append(note, table, foot);
-    this._refreshBinds();
-    return box;
+  saveName(){
+    const e=this.editor,value=e.value.trim().replace(/\s+/g,' ');
+    if(!value){e.error='ENTER A DRIVER NAME';return;}
+    this.onName?.(value);this.ui.playerName=value;this.editor=null;this.open=e.returnOpen;this.onToggle?.(this.open);this.ui.toast('Driver name updated');
   }
-
-  _refreshBinds() {
-    for (const { id, kind, slot, b } of this.bindBtns) {
-      const code = this.bindings[id][kind][slot];
-      b.textContent = kind === 'keys' ? keyName(code) : padName(code);
-      b.classList.toggle('empty', !code);
-      b.classList.remove('wait');
+  cancelName(){const e=this.editor;this.editor=null;this.open=e.returnOpen;this.onToggle?.(this.open);}
+  editKey(e){
+    const f=this.editor,ctrl=e.ctrlKey||e.metaKey,lo=Math.min(f.caret,f.anchor),hi=Math.max(f.caret,f.anchor);
+    if(e.key==='Escape'){this.cancelName();return true;}
+    if(e.key==='Enter'){this.saveName();return true;}
+    if(ctrl&&e.key.toLowerCase()==='a'){f.anchor=0;f.caret=f.value.length;return true;}
+    if(ctrl&&['c','x'].includes(e.key.toLowerCase())){
+      navigator.clipboard?.writeText(f.value.slice(lo,hi)).catch(()=>{});
+      if(e.key.toLowerCase()==='x')this.insert('');return true;
+    }
+    if(ctrl&&e.key.toLowerCase()==='v'){navigator.clipboard?.readText().then(text=>{if(this.editor===f)this.insert(text);}).catch(()=>{f.error='CLIPBOARD UNAVAILABLE. TYPE YOUR NAME.';});return true;}
+    if(e.key==='Backspace'||e.key==='Delete'){
+      if(lo===hi){if(e.key==='Backspace')f.anchor=Math.max(0,f.caret-1);else f.anchor=Math.min(f.value.length,f.caret+1);}
+      this.insert('');return true;
+    }
+    if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){
+      f.caret=e.key==='Home'?0:e.key==='End'?f.value.length:Math.max(0,Math.min(f.value.length,f.caret+(e.key==='ArrowLeft'?-1:1)));
+      if(!e.shiftKey)f.anchor=f.caret;return true;
+    }
+    if(!ctrl&&!e.altKey&&e.key.length===1){this.insert(e.key);return true;}
+    return true;
+  }
+  handleKey(e){
+    if(this.editor)return this.editKey(e);
+    if(!this.open){if(e.code==='F3'){this.ui.debug=!this.ui.debug;return true;}return false;}
+    if(this.capture){
+      if(e.key==='Escape'){this.capture=null;this.notice='Binding cancelled';return true;}
+      if(this.capture.kind==='keys'){
+        if(RESERVED_KEYS.includes(e.code)){this.notice='M and Esc stay reserved for the menu';return true;}
+        this.finishBinding(['Backspace','Delete'].includes(e.key)?null:e.code);
+      }return true;
+    }
+    if(e.key==='Tab'){
+      const hits=this.ui.hits,old=hits.findIndex(h=>h.id===this.ui.focusId),i=(old+(e.shiftKey?-1:1)+hits.length)%hits.length;
+      this.ui.focusId=hits[i]?.id;return true;
+    }
+    const hit=this.ui.hits.find(h=>h.id===this.ui.focusId);
+    if(['ArrowLeft','ArrowRight'].includes(e.key)&&hit?.adjust){hit.adjust(e.key==='ArrowRight'?1:-1);return true;}
+    if((e.key==='Enter'||e.code==='Space')&&hit){hit.activate?.();return true;}
+    if(e.key==='PageDown'||e.key==='PageUp'){this.scrollBy((e.key==='PageDown'?1:-1)*this.viewport.h*.8);return true;}
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){this.scrollBy(e.key==='ArrowDown'?42:-42);return true;}
+    return false;
+  }
+  startBinding(id,kind,slot){
+    this.capture={id,kind,slot,armed:false,rest:{}};this.notice=kind==='keys'?'Press a key. Backspace clears; Esc cancels.':'Press a controller button or move a stick.';
+    for(const gp of navigator.getGamepads?.()||[])if(gp)this.capture.rest[gp.index]=[...gp.axes];
+  }
+  finishBinding(code){const {id,kind,slot}=this.capture;const moved=assign(this.bindings,id,kind,slot,code);this.capture=null;
+    this.notice=code?`${kind==='keys'?keyName(code):padName(code)} assigned${moved?' (previous binding cleared)':''}`:'Binding cleared';this.onBindings?.();}
+  pollGamepads(){
+    if(this.capture?.kind==='pad'){
+      const code=padPressed([...(navigator.getGamepads?.()||[])],this.capture.rest);
+      if(!code)this.capture.armed=true;else if(this.capture.armed)this.finishBinding(code);return;
+    }
+    if(!this.open||this.editor)return;
+    for(const pad of navigator.getGamepads?.()||[]){if(!pad)continue;const prev=this.padPrev[pad.index]||{};
+      for(const button of [0,1,4,5,12,13]){const pressed=pad.buttons[button]?.pressed;
+        if(pressed&&!prev[button]){
+          if(button===1)this.toggle(false);
+          else if(button===4||button===5)this.showTab((this.tab+(button===5?1:-1)+this.tabs.length)%this.tabs.length);
+          else if(button===12||button===13){const hits=this.ui.hits,i=hits.findIndex(h=>h.id===this.ui.focusId);this.ui.focusId=hits[(i+(button===13?1:-1)+hits.length)%hits.length]?.id;}
+          else this.ui.hits.find(h=>h.id===this.ui.focusId)?.activate?.();
+        }prev[button]=pressed;
+      }this.padPrev[pad.index]=prev;
     }
   }
-
-  _startCapture(id, kind, slot, btn) {
-    this._stopCapture();
-    this.capture = { id, kind, slot, btn, armed: false, rest: {} };
-    btn.classList.add('wait');
-    btn.textContent = kind === 'keys' ? 'Press a key...' : 'Press a button...';
-    this.status.textContent = '';
-    if (kind === 'pad') {
-      const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
-      for (const gp of pads) if (gp) this.capture.rest[gp.index] = [...gp.axes];
-      if (!pads.some(Boolean)) this.status.textContent = 'No controller found. Plug one in and press any button on it first.';
-      const poll = () => {
-        const c = this.capture;
-        if (!c || c.btn !== btn) return;
-        const code = padPressed(navigator.getGamepads ? [...navigator.getGamepads()] : [], c.rest);
-        if (!code) c.armed = true; // wait until everything is released first
-        else if (c.armed) { this._finish(code); return; }
-        requestAnimationFrame(poll);
-      };
-      requestAnimationFrame(poll);
+  draw(width,height){
+    const u=this.ui;this.pollGamepads();u.rect(0,0,width,height,rgba('#080e0a',.7));
+    if(this.editor){this.drawEditor(width,height);return;}
+    const compact=width<760,pw=Math.min(1080,width-24),ph=Math.min(750,height-24),px=(width-pw)/2,py=(height-ph)/2;
+    u.rect(px,py,pw,ph,'#152019',9);u.rect(px,py,4,ph,C.orange);
+    u.text('DUNES',px+24,py+16,42,C.paper);
+    if(!compact)u.text('MAKE YOURSELF AT HOME',px+150,py+34,15,C.muted,{maxWidth:pw-320});
+    u.button('resume','RESUME',px+pw-124,py+24,100,38,()=>this.toggle(false),{selected:true});
+    let cx,cy,cw,ch;
+    if(compact){
+      u.button('previous-tab','<',px+16,py+82,40,35,()=>this.showTab((this.tab+this.tabs.length-1)%this.tabs.length));
+      u.text(this.tabs[this.tab].toUpperCase(),px+pw/2,py+86,21,C.orange,{align:'center'});
+      u.button('next-tab','>',px+pw-56,py+82,40,35,()=>this.showTab((this.tab+1)%this.tabs.length));
+      cx=px+20;cy=py+136;cw=pw-40;ch=ph-194;
+    }else{
+      this.tabs.forEach((name,i)=>u.button(`tab-${i}`,name.toUpperCase(),px+20,py+98+i*53,160,43,()=>this.showTab(i),{selected:this.tab===i,quiet:true,size:18}));
+      u.text('F1  HELP',px+30,py+ph-66,15,C.muted);u.line(px+200,py+92,px+200,py+ph-66,1,'#36473b');
+      cx=px+228;cy=py+99;cw=pw-256;ch=ph-164;
     }
+    this.viewport={x:cx,y:cy,w:cw,h:ch};u.clip=[cx,cy,cx+cw,cy+ch];
+    let y=cy-this.scroll;
+    if(this.tab===0)y=this.drawDriver(cx,y,cw);
+    else for(const item of SCHEMA[this.tab-1].items)y=this.drawItem(item,cx,y,cw);
+    this.maxScroll=Math.max(0,y+this.scroll-cy-ch);this.scroll=Math.min(this.scroll,this.maxScroll);
+    u.clip=[0,0,width,height];
+    if(this.maxScroll>0){const track=ch,thumb=Math.max(28,ch*ch/(ch+this.maxScroll));u.rect(px+pw-12,cy,3,track,'#35463a');u.rect(px+pw-12,cy+(track-thumb)*this.scroll/this.maxScroll,3,thumb,C.orange);}
+    u.line(px+20,py+ph-51,px+pw-20,py+ph-51,1,'#35463a');
+    u.text(this.notice||'ESC  RESUME    /    TAB  FOCUS    /    ARROWS  ADJUST',px+24,py+ph-35,15,C.muted,{maxWidth:pw-48});
   }
-
-  _stopCapture() { if (this.capture) { this.capture = null; this._refreshBinds(); } }
-
-  _finish(code) {
-    const { id, kind, slot } = this.capture;
-    this.capture = null;
-    const moved = assign(this.bindings, id, kind, slot, code);
-    this._refreshBinds();
-    const name = code ? (kind === 'keys' ? keyName(code) : padName(code)) : null;
-    const label = (x) => ACTIONS.find(a => a.id === x)?.label;
-    this.status.textContent = !code ? `Cleared.` : moved && moved !== id ? `${name} now does ${label(id)} (taken off ${label(moved)}).` : `${name} set for ${label(id)}.`;
-    this.onBindings?.();
+  drawDriver(x,y,w){
+    const u=this.ui;u.text('YOUR DRIVER',x,y,16,C.orange);y+=28;
+    u.text(u.playerName,x,y,40,C.paper,{maxWidth:w-122});u.button('edit-name','EDIT NAME',x+w-112,y+7,112,36,()=>this.editName());y+=66;
+    u.text(u.networkLabel,x,y,21,C.green);y+=32;
+    y+=u.wrap('You join the global lobby automatically. Just drive; other players appear as they connect.',x,y,18,C.muted,w)+24;
+    const car=SCHEMA.flatMap(t=>t.items).find(it=>it.key==='car');y=this.drawItem(car,x,y,w);
+    u.text('DRIVERS HERE',x,y+8,16,C.orange);y+=40;
+    for(const name of [u.playerName,...u.playerNames]){u.text(name,x+12,y,21,C.paper,{maxWidth:w-20});y+=34;}
+    u.button('driver-help','SHOW DRIVING HELP',x,y+12,Math.min(230,w),38,()=>{this.s.showHelp=true;saveSettings(this.s);this.onChange('showHelp',true);this.toggle(false);});
+    return y+72;
   }
-
-  _captureKey(e) {
-    const c = this.capture;
-    if (!c || !this.open) return;
-    e.preventDefault(); e.stopImmediatePropagation();
-    if (e.code === 'Escape') { this._stopCapture(); this.status.textContent = 'Cancelled.'; return; }
-    if (c.kind !== 'keys') return;
-    if (e.code === 'Backspace' || e.code === 'Delete') { this._finish(null); return; }
-    if (RESERVED_KEYS.includes(e.code)) { this.status.textContent = 'M and Esc are kept for the menu. Pick another key.'; return; }
-    this._finish(e.code);
+  drawItem(item,x,y,w){
+    const u=this.ui,top=y;
+    if(item.type==='bindings')return this.drawBindings(x,y,w);
+    if(item.type==='keys'){for(const [key,label] of item.rows){u.text(key.toUpperCase(),x,y,16,C.orange);y+=24;y+=u.wrap(label,x,y,18,C.muted,w)+16;}return y;}
+    u.text(item.label,x,y,22,C.paper);y+=32;
+    if(item.hint)y+=u.wrap(item.hint,x,y,16,C.muted,w)+11;
+    if(item.type==='choice'||item.type==='actions'){
+      let bx=x;
+      for(const [value,label] of item.options||item.list){
+        const bw=Math.min(w,Math.max(69,u.measure(label,18)+26));
+        if(bx+bw>x+w+1){bx=x;y+=43;}
+        u.button(`${item.key}-${String(value)}`,label,bx,y,bw,35,()=>item.type==='actions'?this.onAction?.(item.key,value):this.set(item,value),{selected:item.type==='choice'&&this.s[item.key]===value,size:18});bx+=bw+7;
+      }y+=49;
+    }else if(item.type==='range'){
+      const value=this.preview?.key===item.key?this.preview.value:this.s[item.key],ratio=(value-item.min)/(item.max-item.min),sx=x+8,sw=Math.max(70,w-145);
+      u.rect(sx,y+14,sw,5,'#465448',2);u.rect(sx,y+14,sw*Math.max(0,Math.min(1,ratio)),5,C.orange,2);u.rect(sx+sw*ratio-7,y+7,14,19,C.paper,4);
+      u.text(item.fmt(value),x+w,y+2,19,C.paper,{align:'right',maxWidth:131});
+      const quantize=v=>Math.max(item.min,Math.min(item.max,Math.round((v-item.min)/item.step)*item.step+item.min));
+      const update=px=>{const v=quantize(item.min+(px-sx)/sw*(item.max-item.min));if(item.lazy)this.preview={key:item.key,value:v};else this.set(item,v);};
+      const commit=()=>{if(this.preview?.key===item.key){this.set(item,this.preview.value);this.preview=null;}};
+      u.hit(item.key,x,y,sw+16,35,{type:'slider',update,commit,adjust:step=>this.set(item,quantize(this.s[item.key]+step*item.step)),activate:()=>this.set(item,quantize(this.s[item.key]+item.step))});
+      if(u.focusId===item.key)u.line(x,y+35,x+sw+16,y+35,2,C.paper);
+      y+=45;
+      if(item.presets){let bx=x;for(const [v,label]of item.presets){const bw=Math.max(60,u.measure(label,16)+25);u.button(`${item.key}-preset-${v}`,label,bx,y,bw,31,()=>this.set(item,v),{selected:Math.abs(this.s[item.key]-v)<.001,size:16});bx+=bw+6;}y+=42;}
+    }
+    u.line(x,y+3,x+w,y+3,1,'#35463a');return Math.max(top+55,y+23);
   }
-
-  set(it, v) {
-    if (this.s[it.key] === v) return;
-    this.s[it.key] = v;
-    saveSettings(this.s);
-    this.refresh(it.key);
-    this.onChange(it.key, v, it);
+  drawBindings(x,y,w){
+    const u=this.ui;u.text('YOUR CONTROLS',x,y,27,C.paper);y+=42;
+    y+=u.wrap('Choose a binding, then press a key or controller button. Backspace clears it; Esc cancels.',x,y,17,C.muted,w)+20;
+    const compact=w<600;
+    for(const a of ACTIONS){
+      u.text(a.label,x,y+5,19,C.paper);const bx=compact?x:x+150,by=compact?y+34:y,bw=(w-(compact?0:150)-21)/4;
+      for(const [i,[kind,slot]] of [['keys',0],['keys',1],['pad',0],['pad',1]].entries()){
+        const active=this.capture?.id===a.id&&this.capture.kind===kind&&this.capture.slot===slot,code=this.bindings[a.id][kind][slot];
+        const label=active?'PRESS...':kind==='keys'?keyName(code):padName(code);
+        u.button(`bind-${a.id}-${kind}-${slot}`,label,bx+i*(bw+7),by,bw,32,()=>this.startBinding(a.id,kind,slot),{selected:active,size:compact?13:15});
+      }y+=compact?80:45;
+    }
+    u.button('reset-bindings','RESET CONTROLS',x,y+8,180,38,()=>{this.capture=null;resetBindings(this.bindings);this.onBindings?.();this.notice='Default controls restored';});return y+65;
   }
-
-  // external change (hotkey) -> update the menu's buttons
-  refresh(key) { if (key) this.controls.get(key)?.(); else for (const f of this.controls.values()) f(); }
-
-  showTab(i) {
-    this.tab = i;
-    this.pages.forEach((p, k) => p.classList.toggle('show', k === i));
-    this.tabBtns.forEach((b, k) => b.classList.toggle('on', k === i));
-  }
-
-  toggle(force) {
-    this.open = force ?? !this.open;
-    if (!this.open) this._stopCapture();
-    this.root.classList.toggle('open', this.open);
-    if (this.open) this.refresh();
+  drawEditor(width,height){
+    const u=this.ui,e=this.editor,w=Math.min(560,width-32),h=e.keyboard?458:284,x=(width-w)/2,y=Math.max(8,(height-h)/2);
+    u.rect(x,y,w,h,C.panel,9);u.rect(x,y,4,h,C.orange);
+    u.text('DRIVER NAME',x+24,y+19,32,C.paper);u.text('Updates here and for everyone in the lobby.',x+24,y+65,18,C.muted,{maxWidth:w-48});
+    const fx=x+24,fy=y+108,fw=w-48;
+    u.rect(fx,fy,fw,58,'#26362c',4);u.rect(fx,fy+56,fw,2,C.orange);
+    const size=Math.min(29,(fw-24)/Math.max(1,u.measure(e.value,29))*29),lo=Math.min(e.caret,e.anchor),hi=Math.max(e.caret,e.anchor);
+    const start=fx+12+u.measure(e.value.slice(0,lo),size),end=fx+12+u.measure(e.value.slice(0,hi),size);
+    if(hi>lo)u.rect(start,fy+8,end-start,41,rgba(C.orange,.28),1);
+    u.text(e.value,fx+12,fy+10,size,C.paper);
+    if(Math.floor(performance.now()/500)%2===0){const caret=fx+12+u.measure(e.value.slice(0,e.caret),size);u.rect(caret,fy+12,2,34,C.paper);}
+    u.hit('name-field',fx,fy,fw,58,{type:'button',activate:event=>{if(!event)return;let best=0,dist=Infinity;for(let i=0;i<=e.value.length;i++){const d=Math.abs(event.clientX-(fx+12+u.measure(e.value.slice(0,i),size)));if(d<dist){dist=d;best=i;}}e.caret=e.anchor=best;}});
+    u.text(e.error||`${e.value.length}/24  /  ENTER TO SAVE  /  ESC TO CANCEL`,fx,fy+69,14,e.error?'#ff9b86':C.muted,{maxWidth:fw});
+    const bw=(w-60)/3;
+    u.button('name-cancel','CANCEL',x+24,y+221,bw,39,()=>this.cancelName(),{quiet:true,size:16});
+    u.button('name-keyboard',w<400?'ABC':'KEYBOARD',x+30+bw,y+221,bw,39,()=>{e.keyboard=!e.keyboard;},{quiet:true,size:16});
+    u.button('name-save','SAVE NAME',x+36+bw*2,y+221,bw,39,()=>this.saveName(),{selected:true,size:16});
+    if(e.keyboard){
+      const rows=['QWERTYUIOP','ASDFGHJKL','ZXCVBNM'];let ky=y+280;
+      rows.forEach(row=>{const kw=Math.min(43,(w-48)/10),kx=x+(w-row.length*kw)/2;[...row].forEach((char,i)=>u.button('letter-'+char,char,kx+i*kw,ky,kw-3,35,()=>this.insert(char),{size:18}));ky+=42;});
+      u.button('name-space','SPACE',x+w/2-65,ky,100,30,()=>this.insert(' '),{size:15});u.button('name-backspace','DEL',x+w/2+44,ky,57,30,()=>this.editKey({key:'Backspace'}),{size:15});
+    }
   }
 }
-
-function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }

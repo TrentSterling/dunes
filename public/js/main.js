@@ -11,12 +11,14 @@ import { SandrailModel } from './sandrail-model.js';
 import { SandParticles } from './particles.js';
 import { EngineAudio } from './audio.js';
 import { NetClient } from './net.js';
+import { loadGlyphAtlas } from './gpu-ui.js';
+import { GameUI } from './game-ui.js';
 import { AIDriver, resolveCarContacts } from './ai-driver.js';
 import { Weather } from './weather.js';
 import { CarLights } from './car-lights.js';
 import { DriverArms } from './driver-arms.js';
 import { CockpitLive, LAYER_ARMS, LAYER_MIRROR } from './cockpit-live.js';
-import { RESERVED_KEYS, actionForKey, keyName, padName, padValue, isAxis } from './controls.js';
+import { RESERVED_KEYS, actionForKey, keyName, padValue, isAxis } from './controls.js';
 import { makeNightSky, MOON_DIR } from './night-sky.js';
 import { PLACES, placeXZ } from './places.js';
 import { Radar } from './radar.js';
@@ -35,8 +37,8 @@ const qName = QUALITY[params.get('q')] ? params.get('q') : (QUALITY[settings.qua
 const Q = QUALITY[qName];
 const SPAWN = { x: 940, z: -800 };
 
-const $ = (id) => document.getElementById(id);
-const status = (t) => { const el = $('loading-status'); if (el) el.textContent = t; };
+let loadingUI=null,loadingStep=0;
+const status=(text)=>loadingUI?.loading(text,Math.min(.95,.1+(loadingStep++)*.13));
 
 async function main() {
   // ---------- renderer ----------
@@ -51,6 +53,10 @@ async function main() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   document.body.appendChild(renderer.domElement);
+  const atlas=await loadGlyphAtlas();
+  const ui=new GameUI(renderer,atlas);loadingUI=ui;
+  status('Getting ready to drive...');
+  await new Promise(requestAnimationFrame);
   const gl = renderer.getContext();
   const dbg = gl.getExtension('WEBGL_debug_renderer_info');
   const gpuName = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'GPU';
@@ -59,7 +65,7 @@ async function main() {
   const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.15, 150000);
   camera.layers.enable(LAYER_ARMS); camera.layers.enable(LAYER_MIRROR);   // the mirror cameras see neither
 
-  status('Loading Glamis elevation data (USGS 3DEP)...');
+  status('Loading the Imperial Sand Dunes...');
   const terrainData = await TerrainData.load('data/');
 
   // ---------- sky + sun ----------
@@ -175,7 +181,7 @@ async function main() {
   }
 
   // ---------- terrain ----------
-  status('Building terrain (CDLOD, gradient + shadow bakes on GPU)...');
+  status('Shaping the dunes...');
   let terrain = null, particles = null;
   terrain = new TerrainRenderer(renderer, terrainData, { patchRes: Q.patchRes, leafSize: Q.leafSize, lodRange0: Q.lodRange0, gradRes: Q.gradRes, sunShadowRes: Q.sunShadowRes });
   scene.add(terrain.mesh);
@@ -254,7 +260,7 @@ async function main() {
   }
   const specFor = (id) => templates[id]?.spec || SANDRAIL_SPEC;
   if (settings.car !== 'classic' && !templates[settings.car]) settings.car = availableCars[0] || 'classic';
-  status('Building sandrail...');
+  status('Preparing your sandrail...');
   let car = new SandrailPhysics(terrainData, specFor(settings.car));
   // face the biggest dune near the spawn bowl
   let bestYaw = 0, bestH = -1e9;
@@ -268,7 +274,7 @@ async function main() {
   let model = makeVisual(settings.car);
   model.arms = DriverArms.for(model);
   // live mirrors, dash and chart plotter, cabin fill (the radar is made further down)
-  const makeLive = (m) => (m instanceof GltfSandrail ? new CockpitLive(m, { getRadar: () => radar, getTerrain: () => terrain, mirrorsLive: settings.liveMirrors !== false }) : null);
+  const makeLive = (m) => (m instanceof GltfSandrail ? new CockpitLive(m, { renderer, atlas, getRadar: () => radar, getTerrain: () => terrain, mirrorsLive: settings.liveMirrors !== false }) : null);
   model.live = makeLive(model);
   scene.add(model.root);
   function switchCar(id) {
@@ -296,7 +302,7 @@ async function main() {
   // ---------- computer-driven sandrails ----------
   const bots = [];
   function setBotCount(n) {
-    while (bots.length > n) { const b = bots.pop(); scene.remove(b.model.root); b.label.remove(); }
+    while (bots.length > n) { const b = bots.pop(); scene.remove(b.model.root); ui.removeLabel(b.label); }
     while (bots.length < n) {
       // each computer car gets one of your models, the others before repeats
       const pool = availableCars.filter(id => id !== settings.car);
@@ -309,7 +315,7 @@ async function main() {
       b.car.gravity = settings.gravity; b.car.grip = settings.grip; b.car.softness = settings.softness;
       b.model = makeVisual(carId, b.tint);
       scene.add(b.model.root);
-      b.label = document.createElement('div'); b.label.className = 'tag'; document.body.appendChild(b.label);
+      b.label = ui.label();
       b.prevContact = [null, null, null, null]; b.prevDist = [0, 0, 0, 0];
       b.pens = [new TrackPen(), new TrackPen(), new TrackPen(), new TrackPen()];
       bots.push(b);
@@ -321,7 +327,8 @@ async function main() {
   const remotes = new Map();
   let netRemoteSetting = null, pendingWorld = null;
   const net = new NetClient({
-    onStatus: (ok, label) => { $('net').textContent = label || (ok ? 'Online' : 'Offline (single player)'); tlog.setConnected(ok); },
+    onStatus: (ok,label) => { ui.networkLabel=label||(ok?'Local relay connected':'Solo driving');tlog.setConnected(ok); },
+    onName: (id,name) => {const remote=remotes.get(id);if(remote){remote.name=name;updatePlayerList();}},
     onBinary: (f) => {
       if (f[0] === 1) tlog.addRemote(f, 1, Math.floor((f.length - 1) / REC));
       else if (f[0] === 2) tlog.receiveTile(f[1], f[2], f, 3, Math.floor((f.length - 3) / REC));
@@ -330,12 +337,12 @@ async function main() {
       if (remotes.has(id)) return;
       const m = makeVisual(carId, tint);
       scene.add(m.root);
-      const label = document.createElement('div'); label.className = 'tag'; label.textContent = name; document.body.appendChild(label);
+      const label=ui.label();label.text=name;
       remotes.set(id, { model: m, name, tint, buf: [], label, prevContacts: [null, null, null, null], dist: [0, 0, 0, 0] });
       if (s) remotes.get(id).buf.push({ t: performance.now(), s });
       updatePlayerList();
     },
-    onLeave: (id) => { const r = remotes.get(id); if (!r) return; scene.remove(r.model.root); r.label.remove(); remotes.delete(id); updatePlayerList(); },
+    onLeave: (id) => { const r = remotes.get(id); if (!r) return; scene.remove(r.model.root); ui.removeLabel(r.label); remotes.delete(id); updatePlayerList(); },
     onSetting: (key, v, who) => netRemoteSetting?.(key, v, who),
     onWorld: (world) => { if (netRemoteSetting) for (const [k, v] of Object.entries(world || {})) netRemoteSetting(k, v, null); else pendingWorld = world; },
     onCar: (id, carId) => {
@@ -347,13 +354,12 @@ async function main() {
   tlog.send = (buf) => net.sendBinary(buf);
   net.trackLog = tlog;
   tlog.request = (keys) => net.sendJSON({ t: 'trkReq', keys });
-  const playerName = localStorage.getItem('glamis-name') || ('Driver ' + Math.floor(Math.random() * 900 + 100));
+  let playerName;try{playerName=localStorage.getItem('glamis-name');}catch{}
+  playerName=String(playerName||'').replace(/[\x00-\x1f\x7f]/g,'').trim().slice(0,24)||('Driver '+Math.floor(Math.random()*900+100));ui.playerName=playerName;
   net.world = () => Object.fromEntries(GLOBAL_KEYS.map(k => [k, settings[k]]));
   if (location.protocol.startsWith('http')) net.connect(playerName, settings.car);
-  function updatePlayerList() {
-    const online = remotes.size ? ` · online: ${[...remotes.values()].map(r => r.name).join(', ')}` : '';
-    $('players').textContent = `${playerName}${online}` + (bots.length ? ` · ${bots.length} computer sandrails` : '');
-  }
+  function updatePlayerList(){ui.playerNames=[...remotes.values()].map(r=>r.name);}
+
   setBotCount(settings.aiCount);
   updatePlayerList();
 
@@ -365,7 +371,7 @@ async function main() {
   const ACT = {
     camera: () => setSetting('camMode', (camMode + 1) % CAM_MODES.length),
     reset: () => { const f = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat); car.reset(car.pos.x, car.pos.z, Math.atan2(f.x, f.z)); },
-    hud: () => $('hud').classList.toggle('hidden'),
+    hud: () => {ui.hudHidden=!ui.hudHidden;},
     help: () => setSetting('showHelp', !settings.showHelp),
     shiftUp: () => shift(true), shiftDown: () => shift(false),
     assist: () => { setSetting('steerAssist', !car.steerAssist); toast('Countersteer assist ' + (car.steerAssist ? 'on' : 'off')); },
@@ -378,7 +384,7 @@ async function main() {
     },
     teleport: () => { tpIndex = (tpIndex + 1) % PLACES.length; teleport(PLACES[tpIndex].id); },
     lights: () => { setLights(!lightsOn); toast('Light bars ' + (lightsOn ? 'on' : 'off')); },
-    name: () => { const n = prompt('Your driver name', playerName); if (n) { localStorage.setItem('glamis-name', n); location.reload(); } },
+    name: () => menu.editName(),
   };
   function shift(up) {
     if (car.autoTrans) { setSetting('autoTrans', false); toast('Manual gearbox, switch back in the M menu'); }
@@ -386,7 +392,7 @@ async function main() {
   }
   addEventListener('keydown', (e) => {
     if (!binds) return;
-    if (RESERVED_KEYS.includes(e.code)) { menu.toggle(); keys.clear(); audio.start(); return; }
+    if (RESERVED_KEYS.includes(e.code)) { if(!e.repeat)menu.toggle(); keys.clear(); audio.start(); return; }
     if (menu.open) return;
     keys.add(e.code);
     const act = actionForKey(binds, e.code);
@@ -401,23 +407,21 @@ async function main() {
     ['wheelie', 'Wheelie control'], ['assist', 'Countersteer assist'], ['name', 'Set your name'], [['hud', 'help'], 'Hide HUD / this help']];
   function renderHelp() {
     const k = (id) => binds[id].keys.filter(Boolean).map(keyName).join(' or ') || '-';
-    const rows = KEY_HELP.map(([ids, d]) => `<div><b>${(Array.isArray(ids) ? ids.map(k).join(' · ') : k(ids)).replace(/</g, '&lt;')}</b>${d}</div>`);
-    rows.push('<div><b>M / Esc</b>Menu: key bindings, quality, weather, teleport</div>');
-    rows.push(`<div style="opacity:.75">Controller: ${padName(binds.throttle.pad[0])} gas, ${padName(binds.brake.pad[0])} brake, ${padName(binds.handbrake.pad[0])} handbrake, ${padName(binds.camera.pad[0])} camera · Start menu</div>`);
-    $('help').innerHTML = rows.join('');
+    ui.helpRows=KEY_HELP.map(([ids,label])=>[Array.isArray(ids)?ids.map(k).join(' / '):k(ids),label]);
+    ui.shortcuts=[['throttle','THROTTLE'],['handbrake','HANDBRAKE'],['camera','CAMERA'],['name','NAME']].map(([id,label])=>`${k(id)}  ${label}`).join('     ');
   }
   addEventListener('keyup', (e) => keys.delete(e.code));
   // a key released while the window was in the background never sends keyup
   addEventListener('blur', () => keys.clear());
   addEventListener('pointerdown', () => audio.start());
   let orbitYaw = 0, orbitPitch = 0, dragging = false, camDist = 1;
-  renderer.domElement.addEventListener('pointerdown', (e) => { dragging = true; renderer.domElement.setPointerCapture(e.pointerId); });
+  renderer.domElement.addEventListener('pointerdown', (e) => { if(menu.open)return;dragging = true; renderer.domElement.setPointerCapture(e.pointerId); });
   renderer.domElement.addEventListener('pointerup', () => { dragging = false; });
-  renderer.domElement.addEventListener('pointermove', (e) => { if (dragging) { orbitYaw -= e.movementX * 0.005; orbitPitch = Math.max(-0.4, Math.min(1.2, orbitPitch + e.movementY * 0.004 * (settings.invertLook ? -1 : 1))); } });
-  renderer.domElement.addEventListener('wheel', (e) => { camDist = Math.max(0.5, Math.min(4, camDist * (1 + Math.sign(e.deltaY) * 0.1))); });
+  renderer.domElement.addEventListener('pointermove', (e) => { if (dragging&&!menu.open) { orbitYaw -= e.movementX * 0.005; orbitPitch = Math.max(-0.4, Math.min(1.2, orbitPitch + e.movementY * 0.004 * (settings.invertLook ? -1 : 1))); } });
+  renderer.domElement.addEventListener('wheel', (e) => { if(menu.open)return;camDist = Math.max(0.5, Math.min(4, camDist * (1 + Math.sign(e.deltaY) * 0.1))); });
 
   let flipT = 0; const _upChk = new THREE.Vector3();
-  const padPrev = {};
+  const padPrev = {}, padStart = {};
   function readInput(dt) {
     const k = (id) => binds[id].keys.some(x => x && keys.has(x));
     let steerT = (k('right') ? 1 : 0) - (k('left') ? 1 : 0);
@@ -429,7 +433,8 @@ async function main() {
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const gp of pads) {
       if (!gp) continue;
-      if (gp.buttons[9]?.pressed && !gp._st) menu.toggle(); gp._st = gp.buttons[9]?.pressed;
+      if (gp.buttons[9]?.pressed && !padStart[gp.index]) menu.toggle();
+      padStart[gp.index] = !!gp.buttons[9]?.pressed;
       if (menu.open) continue;
       const pv = (id) => Math.max(padValue(gp, binds[id].pad[0]), padValue(gp, binds[id].pad[1]));
       const pAxis = (id) => binds[id].pad.some(c => isAxis(c) && padValue(gp, c) > 0);
@@ -452,6 +457,7 @@ async function main() {
       if (Math.abs(rx) > 0.15) orbitYaw -= rx * dt * 2.5; else if (!dragging) orbitYaw *= Math.pow(0.1, dt);
       if (Math.abs(ry) > 0.15) orbitPitch = Math.max(-0.4, Math.min(1.2, orbitPitch + ry * dt * 1.5));
     }
+    if(menu.open){steerT=0;thr=0;brk=0;hb=false;}
     if (analog) input.steer = steerT;
     else {
       const rate = ((steerT === 0 || Math.sign(steerT) !== Math.sign(input.steer)) ? 7 : 4.2) * settings.steerSens;
@@ -689,9 +695,7 @@ async function main() {
 
   // ---------- HUD ----------
   const audio = new EngineAudio();
-  let toastTimer = 0;
-  function toast(t) { const el = $('toast'); el.textContent = t; el.style.opacity = 1; toastTimer = 2.2; }
-  $('gpu').textContent = `${gpuName} · ${qName.toUpperCase()} quality`;
+  function toast(t){ui.toast(t);}
   // the nearest bot's engine (uses assets/audio/nearby.* once that file exists); remote players
   // could get the same voice from the nearest r.buf state in the remote-cars loop
   const botAudio = new EngineAudio({ nearby: true });
@@ -707,11 +711,11 @@ async function main() {
   // mirror; the DuneNav screen in the dash shows the map there)
   // optional: in the cockpit of a car with a live chart plotter (DuneNav) show the radar only on that screen
   function radarOnDash() { return !!(settings.radarCockpit === 'dash' && radarVis.cockpit && model?.live?.screens?.lowrance); }
-  function radarVis() { $('radarwrap').classList.toggle('hidden', !settings.radar || radarOnDash()); }
+  function radarVis() { ui.radarVisible=settings.radar&&!radarOnDash(); }
 
   // ---------- menu (M) ----------
-  status('Drawing radar map...');
-  const radar = new Radar($('radar'), terrainData);
+  status('Preparing your map...');
+  const radar = new Radar(null,terrainData);
   radar.range = settings.radarRange;
   function applySetting(key, v) {
     switch (key) {
@@ -740,7 +744,7 @@ async function main() {
       case 'radar': case 'radarCockpit': radarVis(); break;
       case 'liveMirrors': model.live?.setMirrorsLive(v); break;
       case 'radarRange': radar.range = v; break;
-      case 'showHelp': $('help').classList.toggle('hidden', !v); break;
+      case 'showHelp': break;
     }
   }
   // change from a hotkey: apply, save and keep the menu in sync
@@ -758,8 +762,10 @@ async function main() {
     }
   }
   netRemoteSetting = remoteSetting;
+  const menu = new Menu(ui, settings, (key, v) => { applySetting(key, v); shareSetting(key, v); });
+  menu.onToggle=()=>{keys.clear();dragging=false;};
+  menu.onName=name=>{playerName=name;ui.playerName=name;try{localStorage.setItem('glamis-name',name);}catch{}net.setName(name);updatePlayerList();};
   if (pendingWorld) { for (const [k, v] of Object.entries(pendingWorld)) remoteSetting(k, v, null); pendingWorld = null; }
-  const menu = new Menu($('menu'), settings, (key, v) => { applySetting(key, v); shareSetting(key, v); });
   binds = menu.bindings;
   renderHelp();
   menu.onBindings = renderHelp;
@@ -770,8 +776,7 @@ async function main() {
 
   // ---------- loop ----------
   status('Ready');
-  $('loading').classList.add('done');
-  setTimeout(() => $('loading').remove(), 1200);
+
   let lastT = performance.now();
   let fpsAcc = 0, fpsN = 0;
   const tmpV = new THREE.Vector3(), tmpS = new THREE.Vector3();
@@ -900,32 +905,24 @@ async function main() {
     audio.update(car.rpm, pedal(car), roostAmt * 0.5, car.speed);
     net.update(dt, () => { const st = car.getState(); st.lt = lightsOn; return st; });
 
-    // HUD
-    const mph = Math.abs(car.forwardSpeed) * 2.23694;
-    $('speed').textContent = Math.round(mph);
-    $('gear').textContent = car.gear === -1 ? 'R' : car.gear === 0 ? 'N' : car.gear;
-    $('rpmbar').style.width = Math.min(100, car.rpm / 7500 * 100) + '%';
-    $('rpmbar').style.background = car.rpm > 7000 ? '#ff3b30' : '#ffb000';
-    $('rpm').textContent = Math.round(car.rpm / 10) * 10;
-    fpsAcc += dt; fpsN++;
-    if (fpsAcc > 0.5) { $('fps').textContent = Math.round(fpsN / fpsAcc) + ' fps'; fpsAcc = 0; fpsN = 0; }
-    if (settings.radar && !radarOnDash() && (fpsN & 1) === 0) {
-      _f.set(0, 0, 1).applyQuaternion(car.quat);
-      const blips = bots.map(b => ({ x: b.car.pos.x, z: b.car.pos.z, color: '#' + new THREE.Color(b.tint).getHexString(), kind: 'bot' }));
-      for (const r of remotes.values()) blips.push({ x: r.model.root.position.x, z: r.model.root.position.z, color: '#7cf', kind: 'player' });
-      radar.draw({ x: car.pos.x, z: car.pos.z, fx: _f.x, fz: _f.z }, blips);
-      const inRange = blips.filter(b => Math.hypot(b.x - car.pos.x, b.z - car.pos.z) <= radar.range).length;
-      $('radarinfo').textContent = `${inRange} of ${blips.length} in range · ${radar.range >= 1000 ? radar.range / 1000 + ' km' : radar.range + ' m'}`;
+    // HUD data is drawn in the GPU overlay after the world.
+    const mph=Math.abs(car.forwardSpeed)*2.23694;
+    fpsAcc+=dt;fpsN++;if(fpsAcc>.5){ui.fps=Math.round(fpsN/fpsAcc);fpsAcc=0;fpsN=0;}
+    if(settings.radar&&(fpsN&1)===0){
+      _f.set(0,0,1).applyQuaternion(car.quat);
+      const blips=bots.map(b=>({x:b.car.pos.x,z:b.car.pos.z,color:'#'+new THREE.Color(b.tint).getHexString(),kind:'bot'}));
+      for(const r of remotes.values())blips.push({x:r.model.root.position.x,z:r.model.root.position.z,color:'#7cf',kind:'player'});
+      radar.draw({x:car.pos.x,z:car.pos.z,fx:_f.x,fz:_f.z},blips);
     }
-    if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) $('toast').style.opacity = 0; }
 
     if (model.live) {
       _f.set(0, 0, 1).applyQuaternion(car.quat);
       model.live.update({ dt, speed: car.forwardSpeed, gear: car.gear, rpm: car.rpm, throttle: car.throttleEff || 0, pos: car.pos, fwd: _f, tod: settings.night ? 22 : timeOfDay, day: dayLight(), cockpit: radarVis.cockpit });
       if (radarVis.cockpit) model.live.renderMirrors(renderer, scene, camera);
     }
-    renderer.render(scene, camera);
-    if (params.has('shot')) window.__frames = (window.__frames || 0) + 1;
+    renderer.render(scene,camera);
+    ui.draw({mph,rpm:car.rpm,gear:car.gear===-1?'R':car.gear===0?'N':car.gear,radar,radarVisible:settings.radar&&!radarOnDash(),showHelp:settings.showHelp,quality:qName});
+    window.__frames=(window.__frames||0)+1;
     requestAnimationFrame(frame);
   }
 
@@ -968,10 +965,8 @@ async function main() {
   function placeLabel(label, p, show, text) {
     tmpV.copy(p); tmpV.y += 2.2; tmpV.project(camera);
     const vis = show && tmpV.z < 1 && Math.abs(tmpV.x) < 1.1 && Math.abs(tmpV.y) < 1.1;
-    label.style.display = vis ? 'block' : 'none';
-    if (!vis) return;
-    if (label.textContent !== text) label.textContent = text;
-    label.style.transform = `translate(${(tmpV.x * 0.5 + 0.5) * innerWidth}px, ${(-tmpV.y * 0.5 + 0.5) * innerHeight}px)`;
+    label.visible=vis;if(!vis)return;label.text=text;
+    label.x=(tmpV.x*.5+.5)*innerWidth;label.y=(-tmpV.y*.5+.5)*innerHeight;
   }
   function angDiff(a, b) { let d = b - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }
 
@@ -980,7 +975,7 @@ async function main() {
     renderer.setSize(innerWidth, innerHeight);
   });
   // test hooks
-  window.__game = { teleport, get car() { return car; }, get model() { return model; }, net, remotes, tlog, ruts, templates, bots, menu, settings, setSetting, weather, radar, camera, renderer, scene, terrain, deform, particles, setSun, input, keys, sun, sky, hemi, sunDir, setCam: (m) => { camMode = m; }, setOrbit: (y, p, d) => { orbitYaw = y; orbitPitch = p; camDist = d; camInit = false; } };
+  window.__game = { teleport, get car() { return car; }, get model() { return model; }, net, remotes, ui, tlog, ruts, templates, bots, menu, settings, setSetting, weather, radar, camera, renderer, scene, terrain, deform, particles, setSun, input, keys, sun, sky, hemi, sunDir, setCam: (m) => { camMode = m; }, setOrbit: (y, p, d) => { orbitYaw = y; orbitPitch = p; camDist = d; camInit = false; } };
   frame();
 }
 
