@@ -1,4 +1,4 @@
-# Name tags and camera/lighting stalls (0.5.1)
+# Name tags and camera/lighting stalls (0.5.2)
 
 The former label check accepted negative projected depth. With reversed depth,
 that includes cars behind the camera, producing misleading floating names.
@@ -10,7 +10,10 @@ The first cockpit switch compiled 54 shaders during gameplay in the local
 baseline and stalled for 2571 ms. Loading now prepares both canvas and mirror
 shader variants, uploads cockpit resources, warms the five camera views and
 waits asynchronously for the GPU. Mirrors always draw one glass per frame,
-including on camera switches. This moves first-use work into loading.
+including on camera switches. Tire stamping and track-window clearing use
+separate offscreen scenes; 0.5.2 prepares those shaders too. Their first use
+depends on the car settling or starting to drive. This moves first-use work
+into loading.
 
 Time changes recreated the environment capture scene and terrain shadow shader,
 and invalidated the terrain material each time. Capture objects and the shadow

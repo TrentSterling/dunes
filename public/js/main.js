@@ -1043,6 +1043,14 @@ async function main() {
     ui.loading('Preparing cameras and reflections...', .96);
     await new Promise(requestAnimationFrame);
   }
+  // Tire stamps and scrolling clears use their own offscreen scenes. A parked
+  // car may not use those shaders until it settles or starts driving.
+  for (const d of deforms) {
+    renderer.setRenderTarget(d.rt);
+    await renderer.compileAsync(d.scene, d.camera);
+    renderer.initRenderTarget(d.rt);
+  }
+  renderer.setRenderTarget(null);
   // Wait without blocking JavaScript for the queued GPU uploads/draws to finish.
   const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
   if (fence) { while (gl.clientWaitSync(fence, 0, 0) === gl.TIMEOUT_EXPIRED) await new Promise(requestAnimationFrame); gl.deleteSync(fence); }

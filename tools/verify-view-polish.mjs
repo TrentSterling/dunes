@@ -23,13 +23,14 @@ async function sample(key,value,n=50){
 try{
   await page.addInitScript(()=>{
     localStorage.setItem('glamis-settings-v1',JSON.stringify({quality:'ultra',car:'pro',proCarV:1,aiCount:4,radarGpuV:1,showHelp:false}));
-    window.__compiles=0;const compile=WebGL2RenderingContext.prototype.compileShader;
-    WebGL2RenderingContext.prototype.compileShader=function(...args){window.__compiles++;return compile.apply(this,args);};
+    window.__compiles=0;window.__lateCompiles=[];const compile=WebGL2RenderingContext.prototype.compileShader;
+    WebGL2RenderingContext.prototype.compileShader=function(...args){window.__compiles++;if(window.__game?.warmup.ready)window.__lateCompiles.push({frame:window.__frames||0,source:this.getShaderSource(args[0])});return compile.apply(this,args);};
   });
   await page.goto(`${base}/?room=view-polish-${Date.now()}`,{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.__game?.warmup.ready&&window.__frames>40,null,{timeout:180000});
   report.gpu=await page.evaluate(()=>{const gl=__game.renderer.getContext(),ext=gl.getExtension('WEBGL_debug_renderer_info');return {renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):'',warmup:__game.warmup,reversed:__game.renderer.capabilities.reversedDepthBuffer};});
   assert.equal(report.gpu.warmup.cameras,5);assert.ok(report.gpu.warmup.mirrors>=3);
+  report.lateCompiles=await page.evaluate(()=>window.__lateCompiles);assert.equal(report.lateCompiles.length,0,'Unexpected shader compilation after loading');
   pass('All five camera modes and mirror targets are prepared before driving starts');
   for(const mode of [1,2,3,4,0,2]){
     const s=await sample('camMode',mode);assert.equal(s.compiles,0,JSON.stringify(s));assert.ok(s.max<100,JSON.stringify(s));
@@ -78,5 +79,5 @@ try{
   await page.setViewportSize({width:390,height:844});await frames();await page.screenshot({path:out+'/tags-compact.png'});
   await page.setViewportSize({width:1440,height:900});await page.evaluate(()=>__game.setSetting('camMode',2));await frames();await page.screenshot({path:out+'/cockpit.png'});
   assert.deepEqual(report.errors,[]);assert.deepEqual(report.failedRequests,[]);report.passed=true;
-}catch(e){report.passed=false;report.failure=e.stack;process.exitCode=1;await page.screenshot({path:out+'/failure.png'}).catch(()=>{});}
+}catch(e){report.passed=false;report.failure=e.stack;report.lateCompiles=await page.evaluate(()=>window.__lateCompiles).catch(()=>[]);process.exitCode=1;await page.screenshot({path:out+'/failure.png'}).catch(()=>{});}
 finally{report.verifiedUtc=new Date().toISOString();fs.writeFileSync(out+'/view-polish.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({passed:report.passed,checks:report.checks.length,maxFrame:Math.max(...report.samples.map(s=>s.max)),failure:report.failure,errors:report.errors,receipt:out+'/view-polish.json'},null,2));await browser.close();}
