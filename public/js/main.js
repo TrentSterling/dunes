@@ -9,6 +9,7 @@ import { TrackLog, TrackPen, REC, TILE } from './track-log.js';
 import { SandrailPhysics, SANDRAIL_SPEC } from './vehicle-physics.js';
 import { SandrailModel } from './sandrail-model.js';
 import { SandParticles } from './particles.js';
+import { DustRenderer } from './dust-renderer.js';
 import { EngineAudio } from './audio.js';
 import { NetClient } from './net.js';
 import { loadGlyphAtlas } from './gpu-ui.js';
@@ -18,6 +19,7 @@ import { AIDriver, resolveCarContacts } from './ai-driver.js';
 import { Weather } from './weather.js';
 import { CarLights } from './car-lights.js';
 import { DriverArms } from './driver-arms.js';
+import { DriverRider, loadRider, LAYER_RIDER } from './driver-rider.js';
 import { CockpitLive, LAYER_ARMS, LAYER_MIRROR } from './cockpit-live.js';
 import { RESERVED_KEYS, actionForKey, keyName, padValue, isAxis } from './controls.js';
 import { makeNightSky, MOON_DIR } from './night-sky.js';
@@ -220,6 +222,7 @@ async function main() {
     }
   };
   particles = new SandParticles(scene, { grains: Q.grains, dust: Q.dust });
+  const dustRenderer = new DustRenderer(renderer,particles,{samples:Q.msaa?4:0});
   for (const k of ['uLP', 'uLD', 'uLC']) particles.uniforms[k] = terrain.uniforms[k]; // same car lights light the dust
   particles.uniforms.uFogDensity.value = scene.fog.density;
   particles.emitScale = settings.particles;
@@ -258,7 +261,7 @@ async function main() {
   let lightsOn = !!settings.night; // N toggles the light bars and whips (they come on at night)
   status('Loading sandrail models...');
   // load every model in the assets folder (player, computer cars, other players)
-  const loaded = await Promise.allSettled(CAR_IDS.map(id => loadCar(id)));
+  const [loaded] = await Promise.all([Promise.allSettled(CAR_IDS.map(id => loadCar(id))),loadRider()]);
   const templates = {};
   loaded.forEach((r, i) => { if (r.status === 'fulfilled') templates[CAR_IDS[i]] = r.value; else console.warn('could not load', CAR_IDS[i], r.reason); });
   const availableCars = Object.keys(templates);
@@ -272,6 +275,7 @@ async function main() {
     m.lights = new CarLights(m, CARS[id] && tpl ? parseInt(CARS[id].color.slice(1), 16) : (tint ?? 0xb00d12)); // LED light bar + whips (top light in the car's color)
     m.lights.setOn(lightsOn);
     m.setLamps?.(lightsOn);
+    m.rider=DriverRider.for(m);
     return m;
   }
   const specFor = (id) => templates[id]?.spec || SANDRAIL_SPEC;
@@ -503,6 +507,8 @@ async function main() {
     const fov = mode === 'cockpit' ? THREE.MathUtils.clamp(Number(settings.cockpitFov) || 78, 50, 90) : mode === 'hood' ? 70 : 62;
     if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
     if (model.arms) { model.arms.setVisible(mode === 'cockpit' && settings.driverArms === true); model.arms.update(car.steerAngle * 5); }
+    model.rider?.setLocal(true);
+    if(mode==='cockpit')camera.layers.disable(LAYER_RIDER);else camera.layers.enable(LAYER_RIDER);
     if (model.live) model.live.setActive(mode === 'cockpit');
     if ((mode === 'cockpit') !== radarVis.cockpit) { radarVis.cockpit = mode === 'cockpit'; radarVis(); }
     if (mode === 'cockpit' || mode === 'hood') {
@@ -938,7 +944,7 @@ async function main() {
       model.live.update({ dt, speed: car.forwardSpeed, gear: car.gear, rpm: car.rpm, throttle: car.throttleEff || 0, pos: car.pos, fwd: _f, tod: settings.night ? 22 : timeOfDay, day: dayLight(), cockpit: radarVis.cockpit });
       if (radarVis.cockpit) model.live.renderMirrors(renderer, scene, camera);
     }
-    renderer.render(scene,camera);
+    dustRenderer.render(scene,camera);
     ui.draw({mph,rpm:car.rpm,gear:car.gear===-1?'R':car.gear===0?'N':car.gear,radar,radarVisible:settings.radar&&!radarOnDash(),showHelp:settings.showHelp,quality:qName});
     window.__frames=(window.__frames||0)+1;
     requestAnimationFrame(frame);
@@ -993,7 +999,7 @@ async function main() {
   const warmup = { ready: false, cameras: 0, mirrors: 0 };
   window.__game = { teleport, get car() { return car; }, get model() { return model; }, net, remotes, ui, tlog, ruts, templates, bots, menu, settings, setSetting, weather, radar, camera, renderer, scene, terrain, deform, particles, setSun, lightingStats, warmup, input, keys, sun, sky, hemi, sunDir, setCam: (m) => { camMode = m; }, setOrbit: (y, p, d) => { orbitYaw = y; orbitPitch = p; camDist = d; camInit = false; } };
   status('Preparing cameras and reflections...');
-  await model.arms?.ready;
+  await model.arms?.assetReady;
   model.root.position.copy(car.pos); model.root.quaternion.copy(car.quat);
   model.update(car.getState().w, car.steerAngle);
   for (const b of bots) { b.model.root.position.copy(b.car.pos); b.model.root.quaternion.copy(b.car.quat); b.model.update(b.car.getState().w, b.car.steerAngle); }
@@ -1008,7 +1014,10 @@ async function main() {
   // entering the normal shadow box does not introduce a new depth program.
   const shadowBounds = [sc.left, sc.right, sc.top, sc.bottom];
   sc.left = sc.bottom = -600; sc.right = sc.top = 600; sc.updateProjectionMatrix();
+  const shadowCasters=[];
+  scene.traverse(o=>{if(o.isMesh&&o.castShadow){shadowCasters.push([o,o.frustumCulled]);o.frustumCulled=false;}});
   renderer.render(scene, camera);
+  for(const [o,culled]of shadowCasters)o.frustumCulled=culled;
   [sc.left, sc.right, sc.top, sc.bottom] = shadowBounds; sc.updateProjectionMatrix();
   ui.loading('Preparing cameras and reflections...', .96);
   model.live?.update({ dt: 0, speed: 0, gear: car.gear, rpm: car.rpm, pos: car.pos, fwd: _f, tod: timeOfDay, day: dayLight(), cockpit: true });
@@ -1051,6 +1060,9 @@ async function main() {
     renderer.initRenderTarget(d.rt);
   }
   renderer.setRenderTarget(null);
+  await dustRenderer.warmup(scene,camera);
+  window.__game.dustRenderer=dustRenderer;
+  ui.loading('Preparing dust and lighting...',.98);
   // Wait without blocking JavaScript for the queued GPU uploads/draws to finish.
   const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
   if (fence) { while (gl.clientWaitSync(fence, 0, 0) === gl.TIMEOUT_EXPIRED) await new Promise(requestAnimationFrame); gl.deleteSync(fence); }

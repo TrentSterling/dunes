@@ -45,6 +45,8 @@ try {
   check('Joining client receives the existing room world settings');
   await Promise.all([a, b].map(p => p.waitForFunction(() => window.__game.net.metrics.statesReceived > 10, null, { timeout: 30000 })));
   check('Vehicle state packets flow in both directions over WebRTC');
+  for(const p of [a,b])assert.ok(await p.evaluate(()=>[...__game.remotes.values()].every(r=>r.model.rider&&r.model.rider.root.layers.isEnabled(0))),'Peer rider must be visible in the main scene');
+  check('Both clients render the connected peer with a helmeted rider');
   const before = await a.evaluate(() => window.__game.car.pos.toArray());
   await a.keyboard.down('KeyW');
   await a.waitForTimeout(2200);

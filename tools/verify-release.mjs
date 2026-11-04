@@ -17,6 +17,7 @@ try{
   const config=await fetch(base+'/js/runtime-config.js').then(r=>r.text());assert.match(config,/STATIC_HOSTING = true/);
   const files=['public/index.html','public/js/main.js','public/js/menu.js','public/js/gpu-ui.js','public/js/game-ui.js','public/js/cockpit-display.js','public/js/gltf-sandrail.js','public/js/net-peer.js','public/js/radar.js','public/js/ai-driver.js','public/js/vehicle-physics.js','public/js/settings.js','public/js/controls.js','public/vendor/trystero.js','assets/fonts/barlow-sdf.png','assets/fonts/barlow-sdf.json','assets/fonts/OFL.txt'];
   files.push('public/js/driver-label.js','public/js/driver-arms.js','public/js/cockpit-live.js','public/js/terrain-render.js');
+  files.push('public/js/dust-renderer.js','public/js/particles.js','public/js/driver-rider.js','assets/driver/rider.glb','assets/driver/QUATERNIUS-LICENSE.txt','assets/driver/RIDER-CREDITS.md');
   const hash=b=>createHash('sha256').update(b).digest('hex');
   for(const file of files){const route=file.replace(/^public\//,'');const response=await fetch(base+'/'+route);assert.equal(response.status,200,route);
     const bytes=Buffer.from(await response.arrayBuffer()),expected=execFileSync('git',['show',`HEAD:${file}`],{maxBuffer:8*1024*1024});

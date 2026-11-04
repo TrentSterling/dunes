@@ -82,6 +82,7 @@ export class CockpitLive {
         pc.rt = rt;
         pc.cam = new THREE.PerspectiveCamera(30, pc.res[0] / pc.res[1], 0.05, 150000);
         pc.cam.layers.set(0);
+        pc.cam.layers.enable(4); // Local rider stays visible in the rear-view mirrors.
         return new THREE.MeshBasicMaterial({ map: rt.texture, color: new THREE.Color(...(MIRROR_TINT[pc.key] || MIRROR_TINT.C)), fog: false });
       });
       mesh.layers.set(LAYER_MIRROR);

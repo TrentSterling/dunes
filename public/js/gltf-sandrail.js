@@ -697,6 +697,7 @@ export class GltfSandrail {
 
   // wheelStates: SandrailPhysics.getState().w ([comp, angle, steer, ...] per wheel) or null for ride height
   update(wheelStates, steerAngle = 0) {
+    this.rider?.update(steerAngle || wheelStates?.[0]?.[2] || 0);
     const flip = this.tpl.flip;
     const dys = {}, steers = {};
     this.wheelRigs.forEach((rig, i) => {

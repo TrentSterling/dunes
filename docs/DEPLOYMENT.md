@@ -4,7 +4,7 @@
 - Play: https://tront.xyz/dunes/
 - Suspension: https://tront.xyz/dunes/suspension.html
 - Kestrel: https://tront.xyz/dunes/jet.html
-- Release: 0.5.2
+- Release: 0.6.0
 
 The `Publish Dunes` GitHub Actions workflow packages `public/` and `assets/`
 and deploys the result to GitHub Pages on each push to `main`. The project uses

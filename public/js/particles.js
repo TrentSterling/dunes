@@ -7,6 +7,7 @@ attribute vec4 iPos;    // xyz, size
 attribute vec4 iData;   // alpha, shade, rotation, kind
 varying vec2 vUv; varying float vAlpha; varying float vShade; varying float vKind;
 varying vec3 vWorld;
+varying float vViewDepth;
 void main(){
   vUv = position.xy;
   vAlpha = iData.x; vShade = iData.y; vKind = iData.w;
@@ -16,6 +17,7 @@ void main(){
   vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec3 wp = iPos.xyz + (right*q.x + up*q.y)*iPos.w;
   vWorld = wp;
+  vViewDepth = -(viewMatrix * vec4(wp,1.)).z;
   gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
 }`;
 const FS = /* glsl */`
@@ -24,11 +26,22 @@ uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uCam;
 uniform vec4 uLP[16]; uniform vec4 uLD[16]; uniform vec3 uLC[16]; uniform int uLN;
 varying vec2 vUv; varying float vAlpha; varying float vShade; varying float vKind;
 varying vec3 vWorld;
+varying float vViewDepth;
+uniform float uSoftDepth, uReversed;
+uniform sampler2D uSceneDepth; uniform vec2 uDustSize; uniform mat4 uInvProjection;
 float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
 void main(){
   vec2 p = vUv*2.0;
   float r2 = dot(p,p);
   if (r2 > 1.0) discard;
+  float soft=1.;
+  if(uSoftDepth>.5){
+    vec2 uv=gl_FragCoord.xy/uDustSize;float z=texture2D(uSceneDepth,uv).r;
+    vec4 scene=uInvProjection*vec4(uv*2.-1.,mix(z*2.-1.,z,uReversed),1.);
+    float gap=-scene.z/scene.w-vViewDepth;
+    if(gap<=0.)discard;
+    soft=clamp(gap/.8,0.,1.)*smoothstep(.2,1.4,vViewDepth);
+  }
   vec3 n = normalize(vec3(p, sqrt(1.0 - r2)));
   float a;
   vec3 col;
@@ -58,7 +71,7 @@ void main(){
   float d = distance(uCam, vWorld);
   float fog = 1.0 - exp(-uFogDensity*uFogDensity*d*d);
   col = mix(col, uFogColor, fog);
-  gl_FragColor = vec4(col, a*vAlpha);
+  gl_FragColor = vec4(col, a*vAlpha*soft);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
@@ -142,6 +155,7 @@ export class SandParticles {
       uLP: { value: Array.from({ length: 16 }, () => new THREE.Vector4()) }, uLD: { value: Array.from({ length: 16 }, () => new THREE.Vector4()) },
       uLC: { value: Array.from({ length: 16 }, () => new THREE.Vector3()) }, uLN: { value: 0 }, uSand: { value: new THREE.Color(0.80, 0.56, 0.36) }, // Glamis sand (matches the terrain albedo)
       uFogColor: { value: new THREE.Color() }, uFogDensity: { value: 0 }, uCam: { value: new THREE.Vector3() },
+      uSoftDepth:{value:0},uSceneDepth:{value:null},uDustSize:{value:new THREE.Vector2(1,1)},uInvProjection:{value:new THREE.Matrix4()},uReversed:{value:1},
     };
     const mk = () => new THREE.ShaderMaterial({
       uniforms: this.uniforms, vertexShader: VS, fragmentShader: FS,

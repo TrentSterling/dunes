@@ -133,7 +133,7 @@ export class DriverArms {
     body.add(this.group);
     this._buildProcedural();
     this.ready = false;
-    this.ready = loadArmsAsset().then((gltf) => { if (gltf && this.group.parent) { try { this._useAsset(gltf); } catch (err) { console.warn('driver arms:', err); } } });
+    this.assetReady = loadArmsAsset().then((gltf) => { if (gltf && this.group.parent) { try { this._useAsset(gltf); } catch (err) { console.warn('driver arms:', err); } } });
   }
 
   setVisible(v) {

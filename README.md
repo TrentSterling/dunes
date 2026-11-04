@@ -36,6 +36,10 @@ Name tags reject cars behind the camera and follow the current view. Camera and
 mirror shaders warm up during loading; time changes reuse lighting resources.
 See [view polish and measured performance](docs/VIEW-POLISH.md).
 
+Large dust clouds render in a separate depth-aware pass capped at 960 x 540;
+the world and GPU HUD retain full resolution. Helmeted riders use a CC0 humanoid
+rig with an orange suit and seated steering pose. See [dust and rider notes](docs/DUST-RIDER.md).
+
 The web release also
 includes the [suspension viewer](https://tront.xyz/dunes/suspension.html) and
 [Kestrel viewer](https://tront.xyz/dunes/jet.html). Kestrel is a model study;
