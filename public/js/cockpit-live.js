@@ -169,8 +169,9 @@ export class CockpitLive {
     const prevRT = renderer.getRenderTarget(), prevShadow = renderer.shadowMap.autoUpdate;
     renderer.shadowMap.autoUpdate = false;    // the sun shadow map of this frame is reused
     const list = this._pieces || (this._pieces = this.mirrors.flatMap(mi => mi.pieces));
-    // all glasses on the first frame, then one glass per frame in turn (one extra scene pass per frame)
-    const todo = this._mirrorsDrawn ? [list[this.frame++ % list.length]] : list;
+    // Keep the same work budget when entering the cockpit as while driving.
+    // Startup warms each target before the loading screen disappears.
+    const todo = [list[this.frame++ % list.length]];
     // (r6) the terrain draws only the patches selected (and frustum culled) for one camera: selected for the forward
     // cockpit view it left the sand behind the car out, and the side glasses showed only sky (RGB ~240). Select it for
     // each glass's view (LOD still measured from the eye), then again for the main view. The selection frustum is the

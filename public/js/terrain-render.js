@@ -316,7 +316,7 @@ export class TerrainRenderer {
     const horiz = az.length();
     az.normalize();
     const tanSun = sunDir.y / Math.max(horiz, 1e-4);
-    const mat = new THREE.ShaderMaterial({
+    const mat = this.sunMaterial ||= new THREE.ShaderMaterial({
       uniforms: { uFine: { value: this.fineTex }, info: { value: this.uniforms.uFineInfo.value }, dir: { value: az }, tanSun: { value: tanSun } },
       vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
       fragmentShader: /* glsl */`
@@ -349,8 +349,9 @@ export class TerrainRenderer {
           gl_FragColor = vec4(lit, lit, lit, 1.0);
         }`,
     });
+    mat.uniforms.dir.value.copy(az);
+    mat.uniforms.tanSun.value = tanSun;
     this._fullscreenPass(mat, this.sunRT);
-    mat.dispose();
   }
 
   _makeMaterial(depth) {

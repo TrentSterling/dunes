@@ -32,6 +32,10 @@ Bots drive back when they wander away and roll upright through physics after a
 rollover. They keep their positions when you change cars or teleport.
 See [radar and bot verification](docs/RADAR-BOTS.md).
 
+Name tags reject cars behind the camera and follow the current view. Camera and
+mirror shaders warm up during loading; time changes reuse lighting resources.
+See [view polish and measured performance](docs/VIEW-POLISH.md).
+
 The web release also
 includes the [suspension viewer](https://tront.xyz/dunes/suspension.html) and
 [Kestrel viewer](https://tront.xyz/dunes/jet.html). Kestrel is a model study;

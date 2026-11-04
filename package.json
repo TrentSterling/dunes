@@ -1,6 +1,6 @@
 {
   "name": "dunes",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Dunes: driving sandbox and reproducible Blender vehicle pipeline",
   "main": "server.js",
   "type": "module",
@@ -23,7 +23,8 @@
     "polish:verify": "node tools/verify-polish.mjs",
     "build:font": "python tools/build-font.py",
     "radar:verify": "node tools/verify-radar-bots.mjs",
-    "bots:verify": "node tools/verify-bot-recovery.mjs"
+    "bots:verify": "node tools/verify-bot-recovery.mjs",
+    "view:verify": "node tools/verify-view-polish.mjs"
   },
   "keywords": [],
   "author": "",

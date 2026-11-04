@@ -13,6 +13,7 @@ import { EngineAudio } from './audio.js';
 import { NetClient } from './net.js';
 import { loadGlyphAtlas } from './gpu-ui.js';
 import { GameUI } from './game-ui.js';
+import { placeDriverLabel } from './driver-label.js';
 import { AIDriver, resolveCarContacts } from './ai-driver.js';
 import { Weather } from './weather.js';
 import { CarLights } from './car-lights.js';
@@ -94,6 +95,26 @@ async function main() {
   const sunDir = new THREE.Vector3();
   const pmrem = new THREE.PMREMGenerator(renderer);
   let envRT = null;
+  // Keep the capture scene and its programs alive across lighting changes.
+  const envScene = new THREE.Scene();
+  const envSky = new Sky(); envSky.scale.setScalar(1000);
+  const envNight = new THREE.Mesh(new THREE.SphereGeometry(800, 32, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.012, 0.018, 0.04), side: THREE.BackSide }));
+  const envDust = new THREE.Mesh(new THREE.SphereGeometry(800, 32, 16), new THREE.MeshBasicMaterial({ side: THREE.BackSide, transparent: true, depthWrite: false }));
+  const envGround = new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), new THREE.MeshBasicMaterial({ side: THREE.BackSide }));
+  envScene.add(envSky, envNight, envDust, envGround);
+  let lightingPending = false, lightingDue = 0;
+  const lightingStats = { requests: 0, captures: 0 };
+  function flushLighting() {
+    const previous = envRT;
+    envRT = pmrem.fromScene(envScene, 0, 0.1, 2000);
+    scene.environment = envRT.texture;
+    const first = !terrain.material.envMap;
+    terrain.material.envMap = envRT.texture;
+    if (first) terrain.material.needsUpdate = true;
+    previous?.dispose();
+    terrain.bakeSunShadow(sunDir);
+    lightingPending = false; lightingStats.captures++;
+  }
   let timeOfDay = Number(params.get('tod') ?? settings.tod); // hours
   let weather = null;
   function setSun(hours) {
@@ -124,8 +145,7 @@ async function main() {
     // the cars' orange lift / cabin fill follow the daylight
     setLookDaylight(night ? 0 : Math.min(1, Math.max(0, el * 180 / Math.PI / 8)) * wx.sun);
     // environment for reflections / sky light
-    const envScene = new THREE.Scene();
-    const sky2 = new Sky(); sky2.scale.setScalar(1000);
+    const sky2 = envSky;
     // (very turbid skies render far too bright as a light source; haze is added below as a dust dome)
     sky2.material.uniforms.turbidity.value = Math.min(su.turbidity.value, 3.5);
     sky2.material.uniforms.rayleigh.value = Math.min(su.rayleigh.value, 1.3);
@@ -135,22 +155,19 @@ async function main() {
     sky2.material.uniforms.showSunDisc.value = 0;
     sky2.material.uniforms.cloudCoverage.value = su.cloudCoverage.value;
     sky2.material.uniforms.cloudDensity.value = su.cloudDensity.value;
-    if (!night) envScene.add(sky2);
-    else envScene.add(new THREE.Mesh(new THREE.SphereGeometry(800, 32, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.012, 0.018, 0.04), side: THREE.BackSide })));
-    if (weather && weather.p.tint > 0) {
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(800, 32, 16), new THREE.MeshBasicMaterial({
-        color: new THREE.Color(0.78, 0.62, 0.44).multiplyScalar(0.25 + 0.9 * Math.max(0.1, Math.sin(el)) * wx.sun),
-        side: THREE.BackSide, transparent: true, opacity: Math.min(0.97, weather.p.tint * 0.97), depthWrite: false }));
-      envScene.add(dome);
-    }
+    envSky.visible = !night; envNight.visible = night;
+    envDust.visible = !!weather?.p.tint;
+    envDust.material.color.setRGB(0.78, 0.62, 0.44).multiplyScalar(0.25 + 0.9 * Math.max(0.1, Math.sin(el)) * wx.sun);
+    envDust.material.opacity = Math.min(0.97, (weather?.p.tint || 0) * 0.97);
     // sand-coloured ground hemisphere so chrome reflects the desert floor
-    const ground = new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.55, 0.43, 0.30).multiplyScalar(night ? 0.04 : 0.6 + 0.6 * Math.sin(el)), side: THREE.BackSide }));
-    envScene.add(ground);
-    if (envRT) envRT.dispose();
-    envRT = pmrem.fromScene(envScene, 0, 0.1, 2000);
-    scene.environment = envRT.texture;
+    envGround.material.color.setRGB(0.55, 0.43, 0.30).multiplyScalar(night ? 0.04 : 0.6 + 0.6 * Math.sin(el));
     scene.environmentIntensity = 0.6 * wx.env;
-    if (terrain) { terrain.material.envMap = envRT.texture; terrain.material.envMapIntensity = 0.38 * wx.env; terrain.material.needsUpdate = true; }
+    if (terrain) terrain.material.envMapIntensity = 0.38 * wx.env;
+    // Rapid keys, slider input and peer updates collapse to one latest capture.
+    // Sun/sky/fog respond now; the heavier reflection and distant-shadow refresh
+    // follows once input settles. The first capture happens during loading.
+    lightingPending = true; lightingDue = performance.now() + 120; lightingStats.requests++;
+    if (!envRT) flushLighting();
     // fog colour: a pale blue-grey desert haze, darker than the horizon sky (fogging into the near-white sky turned the far dunes white)
     const fogC = night ? new THREE.Color(0.30, 0.40, 0.62) : new THREE.Color().setRGB(0.50, 0.47, 0.48).lerp(new THREE.Color(0.63, 0.50, 0.37), warm * 0.6);
     if (weather) weather.tintFog(fogC);
@@ -163,7 +180,6 @@ async function main() {
       // sunlit sand all around throws warm light back into the shade
       terrain.uniforms.uBounce.value.setRGB(1.0, 0.8, 0.62).multiply(sun.color).multiplyScalar(sun.intensity * Math.max(0, sunDir.y) * 0.32);
       terrain.uniforms.uSunDir.value.copy(sunDir);
-      terrain.bakeSunShadow(sunDir);
     }
     if (particles) {
       particles.uniforms.uSunDir.value.copy(sunDir);
@@ -768,8 +784,6 @@ async function main() {
   menu.onToggle=()=>{keys.clear();dragging=false;};
   menu.onName=name=>{playerName=name;ui.playerName=name;try{localStorage.setItem('glamis-name',name);}catch{}net.setName(name);updatePlayerList();};
   if (pendingWorld) { for (const [k, v] of Object.entries(pendingWorld)) remoteSetting(k, v, null); pendingWorld = null; }
-  binds = menu.bindings;
-  renderHelp();
   menu.onBindings = renderHelp;
   menu.onAction = (key, id) => { if (key === 'tp') teleport(id); };
   for (const k of ['gravity', 'grip', 'softness']) applySetting(k, settings[k]);
@@ -781,7 +795,7 @@ async function main() {
 
   let lastT = performance.now();
   let fpsAcc = 0, fpsN = 0;
-  const tmpV = new THREE.Vector3(), tmpS = new THREE.Vector3();
+  const tmpS = new THREE.Vector3();
   const upW = new THREE.Vector3();
   const remoteTmp = { hub: new THREE.Vector3() };
   const _carsXZ = []; let expireT = 0; const _lightList = [];
@@ -789,6 +803,7 @@ async function main() {
   const dayLight = () => (settings.night ? 0 : Math.min(1, sun.intensity / SUN_I));
   function frame() {
     const nowT = performance.now();
+    if (lightingPending && nowT >= lightingDue) flushLighting();
     const dt = Math.min((nowT - lastT) / 1000, 0.05);
     lastT = nowT;
     readInput(dt);
@@ -810,6 +825,7 @@ async function main() {
     model.update(st.w, car.steerAngle);
 
     updateCamera(dt);
+    camera.updateMatrixWorld();
     deform.follow(car.pos.x, car.pos.z);
     if (deform.center) terrain.uniforms.uDeformInfo.value.set(deform.center.x, deform.center.y, deform.W, 1);
     deformFar.follow(car.pos.x, car.pos.z);
@@ -965,10 +981,7 @@ async function main() {
     });
   }
   function placeLabel(label, p, show, text) {
-    tmpV.copy(p); tmpV.y += 2.2; tmpV.project(camera);
-    const vis = show && tmpV.z < 1 && Math.abs(tmpV.x) < 1.1 && Math.abs(tmpV.y) < 1.1;
-    label.visible=vis;if(!vis)return;label.text=text;
-    label.x=(tmpV.x*.5+.5)*innerWidth;label.y=(-tmpV.y*.5+.5)*innerHeight;
+    placeDriverLabel(label, p, camera, show, text, innerWidth, innerHeight);
   }
   function angDiff(a, b) { let d = b - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }
 
@@ -977,7 +990,65 @@ async function main() {
     renderer.setSize(innerWidth, innerHeight);
   });
   // test hooks
-  window.__game = { teleport, get car() { return car; }, get model() { return model; }, net, remotes, ui, tlog, ruts, templates, bots, menu, settings, setSetting, weather, radar, camera, renderer, scene, terrain, deform, particles, setSun, input, keys, sun, sky, hemi, sunDir, setCam: (m) => { camMode = m; }, setOrbit: (y, p, d) => { orbitYaw = y; orbitPitch = p; camDist = d; camInit = false; } };
+  const warmup = { ready: false, cameras: 0, mirrors: 0 };
+  window.__game = { teleport, get car() { return car; }, get model() { return model; }, net, remotes, ui, tlog, ruts, templates, bots, menu, settings, setSetting, weather, radar, camera, renderer, scene, terrain, deform, particles, setSun, lightingStats, warmup, input, keys, sun, sky, hemi, sunDir, setCam: (m) => { camMode = m; }, setOrbit: (y, p, d) => { orbitYaw = y; orbitPitch = p; camDist = d; camInit = false; } };
+  status('Preparing cameras and reflections...');
+  await model.arms?.ready;
+  model.root.position.copy(car.pos); model.root.quaternion.copy(car.quat);
+  model.update(car.getState().w, car.steerAngle);
+  for (const b of bots) { b.model.root.position.copy(b.car.pos); b.model.root.quaternion.copy(b.car.quat); b.model.update(b.car.getState().w, b.car.steerAngle); }
+  sun.position.copy(car.pos).addScaledVector(sunDir, 500); sun.target.position.copy(car.pos);
+  const savedCam = camMode, savedLights = lightsOn;
+  // Compile both output-color variants: main canvas and mirror render targets.
+  // Actual draws also upload geometry/textures and allocate the shadow targets.
+  camMode = 2; camInit = false; updateCamera(0); camera.updateMatrixWorld();
+  setLights(true);
+  await renderer.compileAsync(scene, camera);
+  // Include the initially distant bots in the first shadow draw, so a car
+  // entering the normal shadow box does not introduce a new depth program.
+  const shadowBounds = [sc.left, sc.right, sc.top, sc.bottom];
+  sc.left = sc.bottom = -600; sc.right = sc.top = 600; sc.updateProjectionMatrix();
+  renderer.render(scene, camera);
+  [sc.left, sc.right, sc.top, sc.bottom] = shadowBounds; sc.updateProjectionMatrix();
+  ui.loading('Preparing cameras and reflections...', .96);
+  model.live?.update({ dt: 0, speed: 0, gear: car.gear, rpm: car.rpm, pos: car.pos, fwd: _f, tod: timeOfDay, day: dayLight(), cockpit: true });
+  const mirrorPieces = model.live?.mirrors.flatMap(m => m.pieces) || [];
+  if (mirrorPieces.length) {
+    model.live._updateMirrors(camera);
+    renderer.setRenderTarget(mirrorPieces[0].rt);
+    await renderer.compileAsync(scene, mirrorPieces[0].cam);
+    renderer.setRenderTarget(null);
+    model.live.updates = Math.max(3, model.live.updates);
+    for (const pc of mirrorPieces) {
+      renderer.initRenderTarget(pc.rt);
+      model.live.renderMirrors(renderer, scene, camera); warmup.mirrors++;
+    }
+  }
+  setLights(savedLights);
+  if (mirrorPieces.length) {
+    renderer.setRenderTarget(mirrorPieces[0].rt);
+    await renderer.compileAsync(scene, mirrorPieces[0].cam);
+    renderer.setRenderTarget(null);
+  }
+  radar.draw({ x: car.pos.x, z: car.pos.z, fx: _f.x, fz: _f.z }, [], { hud: true, nav: true });
+  const skyVisible = sky.visible, nightVisible = nightSky.visible;
+  sky.visible = false; nightSky.visible = true;
+  await renderer.compileAsync(scene, camera); renderer.render(scene, camera);
+  sky.visible = skyVisible; nightSky.visible = nightVisible;
+  ui.loading('Preparing cameras and reflections...', .96);
+  for (const mode of [2, 0, 1, 3, 4]) {
+    camMode = mode; camInit = false; updateCamera(0); camera.updateMatrixWorld(); terrain.update(camera);
+    await renderer.compileAsync(scene, camera); renderer.render(scene, camera);
+    warmup.cameras++;
+    ui.loading('Preparing cameras and reflections...', .96);
+    await new Promise(requestAnimationFrame);
+  }
+  // Wait without blocking JavaScript for the queued GPU uploads/draws to finish.
+  const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+  if (fence) { while (gl.clientWaitSync(fence, 0, 0) === gl.TIMEOUT_EXPIRED) await new Promise(requestAnimationFrame); gl.deleteSync(fence); }
+  camMode = savedCam; camInit = false; updateCamera(0); camera.updateMatrixWorld();
+  binds = menu.bindings; renderHelp();
+  warmup.ready = true; lastT = performance.now();
   frame();
 }
 
