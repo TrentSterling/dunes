@@ -66,3 +66,8 @@ failed resource requests. A separate temporary Node relay check passed rename
 broadcast and late-join roster updates. Screenshots include the full cockpit,
 driver menu, name editor and compact keyboard. `node tools/verify-release.mjs`
 compares the published release and asset hashes to the committed checkout.
+
+The 0.4.1 follow-up also sends name changes while a peer's hello is pending.
+`node tools/verify-name-handshake.mjs` holds one hello handler while two real
+WebRTC peers exchange messages. This reproduced the missed update before the
+fix and verifies that the newest name arrives afterward. It uses a unique room.

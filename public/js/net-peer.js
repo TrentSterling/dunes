@@ -168,7 +168,9 @@ export class PeerClient {
 
   setName(name) {
     this.name=String(name).trim().slice(0,24)||'Driver';
-    if(this.connected)this.send(this.control,{t:'name',name:this.name});
+    // A data channel can be open while its hello is still being handled.
+    // Send to those peers too; later arrivals get this.name in their hello.
+    if(this.room)this.send(this.control,{t:'name',name:this.name});
   }
 
   update(dt, getState) {

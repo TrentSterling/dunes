@@ -1,6 +1,6 @@
 {
   "name": "dunes",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Dunes: driving sandbox and reproducible Blender vehicle pipeline",
   "main": "server.js",
   "type": "module",
