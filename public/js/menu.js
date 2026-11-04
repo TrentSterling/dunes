@@ -1,5 +1,5 @@
 import {SCHEMA,saveSettings} from './settings.js';
-import {ACTIONS,loadBindings,resetBindings,assign,keyName,padName,padPressed,RESERVED_KEYS} from './controls.js';
+import {ACTIONS,loadBindings,resetBindings,assign,keyName,padName,padPressed,RESERVED_KEYS,actionForKey} from './controls.js';
 import {UI_COLORS as C,rgba} from './gpu-ui.js';
 export {SCHEMA,DEFAULTS,GLOBAL_KEYS,loadSettings,saveSettings} from './settings.js';
 
@@ -62,6 +62,7 @@ export class Menu {
         this.finishBinding(['Backspace','Delete'].includes(e.key)?null:e.code);
       }return true;
     }
+    if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&actionForKey(this.bindings,e.code)==='mute'){if(!e.repeat)this.ui.onMute?.();return true;}
     if(e.key==='Tab'){
       const hits=this.ui.hits,old=hits.findIndex(h=>h.id===this.ui.focusId),i=(old+(e.shiftKey?-1:1)+hits.length)%hits.length;
       this.ui.focusId=hits[i]?.id;return true;
@@ -111,7 +112,8 @@ export class Menu {
       u.button('next-tab','>',px+pw-56,py+82,40,35,()=>this.showTab((this.tab+1)%this.tabs.length));
       cx=px+20;cy=py+136;cw=pw-40;ch=ph-194;
     }else{
-      this.tabs.forEach((name,i)=>u.button(`tab-${i}`,name.toUpperCase(),px+20,py+98+i*53,160,43,()=>this.showTab(i),{selected:this.tab===i,quiet:true,size:18}));
+      const step=Math.min(53,(ph-180)/this.tabs.length);
+      this.tabs.forEach((name,i)=>u.button(`tab-${i}`,name.toUpperCase(),px+20,py+98+i*step,160,Math.min(43,step-6),()=>this.showTab(i),{selected:this.tab===i,quiet:true,size:18}));
       u.text('F1  HELP',px+30,py+ph-66,15,C.muted);u.line(px+200,py+92,px+200,py+ph-66,1,'#36473b');
       cx=px+228;cy=py+99;cw=pw-256;ch=ph-164;
     }

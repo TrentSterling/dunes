@@ -4,7 +4,7 @@ export class GameUI extends GlyphSurface {
   constructor(renderer,atlas){
     super(renderer,atlas);this.hits=[];this.pointer={x:-1,y:-1};this.focusId=null;this.hudHidden=false;this.labels=new Set();
     this.playerName='Driver';this.networkLabel='Joining global lobby';this.playerNames=[];this.toastText='';this.toastUntil=0;this.fps=0;
-    const canvas=renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','Dunes driving game. WASD drives. M opens settings. P edits your driver name.');
+    const canvas=renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','Dunes driving game. WASD drives. M opens settings. U mutes audio. P edits your driver name.');
     canvas.addEventListener('pointermove',e=>{this.pointer={x:e.clientX,y:e.clientY};if(this.drag){this.drag.update(e.clientX);e.preventDefault();e.stopImmediatePropagation();}else if(this.menu?.open)e.stopImmediatePropagation();},true);
     canvas.addEventListener('pointerdown',e=>{
       const hit=this.hitAt(e.clientX,e.clientY);
@@ -83,7 +83,10 @@ export class GameUI extends GlyphSurface {
       }
       if(this.debug)this.text(`${this.fps} FPS  /  ${state.quality.toUpperCase()}  /  GPU GLYPHS ${this.glyphCount}`,m,h-21,13,C.muted);
     }
-    if(!menu?.open)this.button('open-menu','M  /  MENU',w-m-112,m,112,38,()=>menu?.toggle(true),{size:17});
+    if(!menu?.open){
+      this.button('open-menu','M  /  MENU',w-m-112,m,112,38,()=>menu?.toggle(true),{size:17});
+      this.button('mute-audio',`${this.muteKey&&this.muteKey!=='-'?this.muteKey+' / ':''}${menu?.s.muted?'UNMUTE':'MUTE'}`,w-m-112,m+46,112,38,()=>this.onMute?.(),{size:16,selected:!!menu?.s.muted});
+    }
     if(performance.now()<this.toastUntil){const tw=Math.min(w-40,this.measure(this.toastText,23)+40);this.rect((w-tw)/2,h*.2,tw,48,rgba(C.ink,.94),5);this.text(this.toastText,w/2,h*.2+8,23,C.paper,{align:'center',maxWidth:tw-24});}
     if(menu?.open){this.hits=[];menu.draw(w,h);}
     this.render();

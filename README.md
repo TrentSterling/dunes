@@ -26,6 +26,11 @@ or use **M > Driver > Edit name**. The driver-side mirror's startup distortion
 is fixed; it came from a cockpit mesh adjustment, not a damage system.
 See [UI implementation and verification](docs/GPU-UI.md).
 
+Click **Mute** below **Menu**, or press **U**, to silence the game immediately.
+**M > Audio** has mute and master volume controls. Both settings stay saved on
+this device; unmuting preserves the volume you chose. The U shortcut can be
+changed in Key bindings and does not fire while editing your name.
+
 The radar now draws its terrain, contours, compass and bot/player markers on
 the GPU. **B** toggles it; the radar's **+ / -** buttons change its range.
 Bots drive back when they wander away and roll upright through physics after a

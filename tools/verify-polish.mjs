@@ -37,6 +37,7 @@ async function hit(page,id){
   const h=await page.evaluate(id=>{const h=window.__game.ui.hits.find(h=>h.id===id);return {x:h.x+h.w/2,y:h.y+h.h/2};},id);
   await page.mouse.click(h.x,h.y);await frames(page,2);
 }
+async function tab(page,name){const index=await page.evaluate(name=>__game.menu.tabs.indexOf(name),name);assert.ok(index>=0);await hit(page,`tab-${index}`);}
 async function frames(page,n=5){const next=await page.evaluate(n=>window.__frames+n,n);await page.waitForFunction(n=>window.__frames>=n,next);}
 async function screenshot(page,name){await page.screenshot({path:path.join(out,name+'.png')});}
 try{
@@ -87,7 +88,7 @@ try{
   await a.keyboard.press('Home');await a.keyboard.press('ArrowRight');await a.keyboard.press('End');await a.keyboard.press('Enter');
   await b.waitForFunction(id=>window.__game.net.peers.get(id)?.name==='Trent Dunes',aid);
   check('Name validation, selection replacement, caret edits and cancellation preserve expected state');
-  await hit(a,'open-menu');await screenshot(a,'driver-menu');await hit(a,'tab-1');
+  await hit(a,'open-menu');await screenshot(a,'driver-menu');await tab(a,'Controls');
   await hit(a,'autoTrans-false');assert.equal(await a.evaluate(()=>window.__game.settings.autoTrans),false);
   await hit(a,'autoTrans-true');
   const slider=await a.evaluate(()=>{const h=window.__game.ui.hits.find(h=>h.id==='steerSens');return {x:h.x,y:h.y,w:h.w,h:h.h};});
@@ -98,10 +99,10 @@ try{
   await a.mouse.wheel(0,500);await frames(a);assert.ok(await a.evaluate(()=>window.__game.menu.scroll>0));
   await a.keyboard.press('KeyW');await frames(a);assert.equal(await a.evaluate(()=>window.__game.input.throttle),0);
   check('GPU choices, pointer sliders, keyboard adjustment, focus and scrolling work without driving input');
-  await hit(a,'tab-2');await hit(a,'bind-throttle-keys-0');await a.keyboard.press('KeyI');
+  await tab(a,'Key bindings');await hit(a,'bind-throttle-keys-0');await a.keyboard.press('KeyI');
   assert.equal(await a.evaluate(()=>window.__game.menu.bindings.throttle.keys[0]),'KeyI');
   await hit(a,'bind-throttle-keys-0');await a.keyboard.press('KeyW');
-  await hit(a,'tab-5');await screenshot(a,'teleport-menu');
+  await tab(a,'Teleport');await screenshot(a,'teleport-menu');
   const teleportId=await a.evaluate(()=>window.__game.ui.hits.find(h=>h.id.startsWith('tp-')).id);
   const before=await a.evaluate(()=>window.__game.car.pos.toArray());await hit(a,teleportId);
   const after=await a.evaluate(()=>window.__game.car.pos.toArray());assert.ok(Math.hypot(...after.map((v,i)=>v-before[i]))>10);
@@ -112,7 +113,7 @@ try{
   assert.ok(screens.dash.draws>0&&screens.lowrance.draws>0&&screens.dash.glyphs>0);report.screens=screens;
   check('Cockpit instruments and navigator draw GPU glyphs into live render targets');
   await a.setViewportSize({width:390,height:844});await frames(a);await hit(a,'open-menu');
-  for(let i=0;i<5;i++)await hit(a,'previous-tab');
+  for(let i=await a.evaluate(()=>__game.menu.tab);i>0;i--)await hit(a,'previous-tab');
   await screenshot(a,'mobile-menu');await hit(a,'edit-name');await hit(a,'name-keyboard');
   await hit(a,'letter-D');await hit(a,'letter-U');await hit(a,'letter-N');await hit(a,'letter-E');await hit(a,'letter-S');await screenshot(a,'mobile-keyboard');
   const bounded=await a.evaluate(()=>window.__game.ui.hits.every(h=>h.x>=0&&h.y>=0&&h.x+h.w<=innerWidth&&h.y+h.h<=innerHeight));assert.ok(bounded);

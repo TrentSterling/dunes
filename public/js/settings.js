@@ -6,7 +6,7 @@ import { PLACES } from './places.js';
 const KEY = 'glamis-settings-v1';
 
 export const DEFAULTS = {
-  quality: 'ultra', renderScale: 1, shadows: 'ultra', particles: 1,
+  quality: 'ultra', renderScale: 1, shadows: 'ultra', particles: 1, muted: false,
   weather: 'clear', tod: 16.8, night: false, wind: 1,
   autoTrans: true, wheelieControl: true, steerAssist: true, steerSens: 1, volume: 0.8, camMode: 0, cockpitFov: 78, radarCockpit: 'hud', liveMirrors: true, driverArms: false, invertLook: false,
   car: 'pro',
@@ -37,6 +37,10 @@ export function saveSettings(s) { try { localStorage.setItem(KEY, JSON.stringify
 const fmtTod = (h) => { const hh = Math.floor(h), mm = Math.round((h % 1) * 60); const ap = hh >= 12 ? 'PM' : 'AM'; return `${((hh + 11) % 12) + 1}:${String(mm).padStart(2, '0')} ${ap}`; };
 
 export const SCHEMA = [
+  { tab: 'Audio', items: [
+    { key: 'muted', label: 'Game audio', type: 'choice', options: [[false, 'Sound on'], [true, 'Muted']], hint: 'Mutes all engines, wind and sand. Your volume stays saved.' },
+    { key: 'volume', label: 'Master volume', type: 'range', min: 0, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + '%', hint: 'Applies to all game sounds. Saved on this device.' },
+  ] },
   { tab: 'Controls', items: [
     { key: 'autoTrans', label: 'Gearbox', type: 'choice', options: [[true, 'Automatic'], [false, 'Manual (Q / E)']] },
     { key: 'wheelieControl', label: 'Wheelie control', type: 'choice', options: [[true, 'On'], [false, 'Off (full send)']], hint: 'Key V' },
@@ -45,7 +49,6 @@ export const SCHEMA = [
     { key: 'camMode', label: 'Camera', type: 'choice', options: [[0, 'Chase'], [1, 'Far'], [2, 'Cockpit'], [3, 'Hood'], [4, 'Side']], hint: 'Key C' },
     { key: 'cockpitFov', label: 'Cockpit field of view', type: 'range', min: 60, max: 90, step: 1, fmt: v => `${v}° (${Math.round(2 * Math.atan(Math.tan(v * Math.PI / 360) * 16 / 9) * 180 / Math.PI)}° wide)`, hint: 'Vertical angle of the cockpit camera' },
     { key: 'invertLook', label: 'Invert look up/down', type: 'choice', options: [[false, 'Off'], [true, 'On']] },
-    { key: 'volume', label: 'Sound volume', type: 'range', min: 0, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + '%' },
     { type: 'keys', rows: [
       ['Mouse', 'Drag to look around, scroll to zoom'], ['M or Esc', 'This menu (controller: Start)'],
       ['Controller', 'Right stick looks around. Change any key or button in the Key bindings tab.'],

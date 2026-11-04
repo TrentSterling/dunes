@@ -24,6 +24,7 @@ export const ACTIONS = [
   { id: 'radar', label: 'Radar on / off', group: 'Other' },
   { id: 'help', label: 'Hide help', group: 'Other' },
   { id: 'name', label: 'Driver name', group: 'Other' },
+  { id: 'mute', label: 'Mute / unmute audio', group: 'Other' },
 ];
 
 export const DEFAULT_BINDINGS = {
@@ -45,6 +46,7 @@ export const DEFAULT_BINDINGS = {
   radar: { keys: ['KeyB', null], pad: [null, null] },
   help: { keys: ['F1', 'Slash'], pad: [null, null] },
   name: { keys: ['KeyP', null], pad: [null, null] },
+  mute: { keys: ['KeyU', null], pad: [null, null] },
 };
 
 // keys and buttons that always open the menu, so nobody can lock themselves out
@@ -63,6 +65,7 @@ export function loadBindings() {
     if (Array.isArray(v.keys)) b[id].keys = [v.keys[0] ?? null, v.keys[1] ?? null];
     if (Array.isArray(v.pad)) b[id].pad = [v.pad[0] ?? null, v.pad[1] ?? null];
   }
+  if (!s.mute && Object.entries(b).some(([id,v]) => id !== 'mute' && v.keys.includes('KeyU'))) b.mute.keys[0] = null;
   return b;
 }
 export function saveBindings(b) { try { localStorage.setItem(KEY, JSON.stringify(b)); } catch { /* private mode */ } }

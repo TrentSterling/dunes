@@ -10,7 +10,7 @@ import { SandrailPhysics, SANDRAIL_SPEC } from './vehicle-physics.js';
 import { SandrailModel } from './sandrail-model.js';
 import { SandParticles } from './particles.js';
 import { DustRenderer } from './dust-renderer.js';
-import { EngineAudio } from './audio.js';
+import { EngineAudio, setMasterAudio } from './audio.js';
 import { NetClient } from './net.js';
 import { loadGlyphAtlas } from './gpu-ui.js';
 import { GameUI } from './game-ui.js';
@@ -406,6 +406,7 @@ async function main() {
     teleport: () => { tpIndex = (tpIndex + 1) % PLACES.length; teleport(PLACES[tpIndex].id); },
     lights: () => { setLights(!lightsOn); toast('Light bars ' + (lightsOn ? 'on' : 'off')); },
     name: () => menu.editName(),
+    mute: () => toggleMute(),
   };
   function shift(up) {
     if (car.autoTrans) { setSetting('autoTrans', false); toast('Manual gearbox, switch back in the M menu'); }
@@ -417,6 +418,7 @@ async function main() {
     if (menu.open) return;
     keys.add(e.code);
     const act = actionForKey(binds, e.code);
+    if(act==='mute'&&(e.ctrlKey||e.metaKey||e.altKey))return;
     if (act && (e.code === 'F1' || e.code === 'Space' || e.code.startsWith('Arrow') || e.code === 'Slash' || e.code === 'Tab')) e.preventDefault();
     if (act && ACT[act] && !e.repeat) ACT[act]();
     audio.start();
@@ -429,6 +431,7 @@ async function main() {
   function renderHelp() {
     const k = (id) => binds[id].keys.filter(Boolean).map(keyName).join(' or ') || '-';
     ui.helpRows=KEY_HELP.map(([ids,label])=>[Array.isArray(ids)?ids.map(k).join(' / '):k(ids),label]);
+    ui.muteKey=k('mute');
     ui.shortcuts=[['throttle','THROTTLE'],['handbrake','HANDBRAKE'],['camera','CAMERA'],['name','NAME']].map(([id,label])=>`${k(id)}  ${label}`).join('     ');
   }
   addEventListener('keyup', (e) => keys.delete(e.code));
@@ -721,7 +724,9 @@ async function main() {
   // the nearest bot's engine (uses assets/audio/nearby.* once that file exists); remote players
   // could get the same voice from the nearest r.buf state in the remote-cars loop
   const botAudio = new EngineAudio({ nearby: true });
-  audio.setVolume(settings.volume); botAudio.setVolume(0);
+  setMasterAudio(settings.volume,settings.muted); botAudio.setVolume(0);
+  function toggleMute(){setSetting('muted',!settings.muted);toast(settings.muted?'Audio muted':'Audio unmuted');}
+  ui.onMute=toggleMute;
   window.__audio = { player: audio, bot: botAudio }; // tests: __audio.player.debug()
   // the engine sound follows the driver's pedal, not throttleEff: wheelie control and steering
   // priority trim the engine torque all the time, and the recording should not drop out while W is held
@@ -747,7 +752,10 @@ async function main() {
       case 'wheelieControl': car.wheelieControl = v; break;
       case 'steerAssist': car.steerAssist = v; break;
       case 'camMode': camMode = v; camInit = false; break;
-      case 'volume': audio.setVolume(v); break;
+      case 'volume': case 'muted':
+        setMasterAudio(settings.volume,settings.muted);
+        if(!settings.muted)audio.start();
+        break;
       case 'quality': {
         const u = new URL(location.href); u.searchParams.delete('q'); location.href = u.toString(); break;
       }
@@ -872,7 +880,7 @@ async function main() {
     if (bots.length) resolveCarContacts([car, ...bots.map(b => b.car)], dt);
     if (nearBot && botAudio.enabled) {
       const g = Math.max(0, 1 - nearD / 300) ** 2;
-      botAudio.setVolume(settings.volume * g * 0.8);
+      botAudio.setVolume(g * 0.8);
       botAudio.update(nearBot.car.rpm, pedal(nearBot.car), 0, 0);
     } else if (botAudio.enabled) botAudio.setVolume(0);
     weather.update(dt, camera, terrainData);

@@ -25,7 +25,20 @@ const EXTS = ['.mp3', '.ogg', '.wav', '.m4a'];
 const IDLE_RPM = 900; // the game's rpm when sitting (idleRpm 1000 less converter drag); idle.mp3 plays at its own pitch here
 
 // one AudioContext and one decoded copy of each file, shared by the player's and the bots' engines
-let sharedCtx = null, sharedSamples = null;
+let sharedCtx = null, sharedSamples = null, sharedOutput = null;
+let masterVolume = 0.8, masterMuted = false;
+
+// One final gain controls every engine, sample, wind and sand voice. Settings
+// apply before the first gesture too, so a saved mute never emits a startup burst.
+export function setMasterAudio(volume, muted) {
+  masterVolume = Math.max(0, Math.min(1, Number(volume) || 0));
+  masterMuted = !!muted;
+  if (!sharedOutput) return;
+  const gain = sharedOutput.gain, now = sharedCtx.currentTime, current = gain.value;
+  gain.cancelScheduledValues(now);
+  gain.setValueAtTime(current, now);
+  gain.linearRampToValueAtTime(masterMuted ? 0 : masterVolume, now + 0.015);
+}
 
 // the server lists assets/audio/ as JSON, so optional files that are not there are never requested
 async function listAudioDir() {
@@ -106,13 +119,17 @@ export class EngineAudio {
     if (this.ctx) { this.ctx.resume(); return; }
     if (!sharedCtx) {
       sharedCtx = new (window.AudioContext || window.webkitAudioContext)();
+      sharedOutput = sharedCtx.createGain();
+      sharedOutput.gain.value = masterMuted ? 0 : masterVolume;
+      sharedOutput.connect(sharedCtx.destination);
       // a hidden tab stops drawing frames, so update() would leave the engine stuck where it was
       document.addEventListener('visibilitychange', () => { if (document.hidden) sharedCtx.suspend(); else sharedCtx.resume(); });
     }
     const ctx = sharedCtx;
     ctx.resume();
     this.ctx = ctx;
-    const master = ctx.createGain(); master.gain.value = 0.55 * this.volume; master.connect(ctx.destination);
+    this.output = sharedOutput;
+    const master = ctx.createGain(); master.gain.value = 0.55 * this.volume; master.connect(sharedOutput);
     this.master = master;
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.connect(master);
     this.comp = comp;
