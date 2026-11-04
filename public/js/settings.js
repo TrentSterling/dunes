@@ -27,6 +27,9 @@ export function loadSettings() {
   if (s.proCarV !== 1) { s.car = 'pro'; s.proCarV = 1; }
   // cockpit field of view: back to the wide 78 deg default (58 / 68 were test defaults, never picked by a player)
   if (s.cockpitFovV !== 3) { if (s.cockpitFov === undefined || [58, 68].includes(Number(s.cockpitFov))) s.cockpitFov = 78; s.cockpitFovV = 3; }
+  // Restore the replacement radar once, including old dash-only/hidden setups.
+  // Later choices stick normally, including turning it off.
+  if(s.radarGpuV!==1){s.radar=true;s.radarCockpit='hud';s.radarGpuV=1;saveSettings(s);}
   return { ...DEFAULTS, ...s };
 }
 export function saveSettings(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode */ } }

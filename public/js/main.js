@@ -21,7 +21,7 @@ import { CockpitLive, LAYER_ARMS, LAYER_MIRROR } from './cockpit-live.js';
 import { RESERVED_KEYS, actionForKey, keyName, padValue, isAxis } from './controls.js';
 import { makeNightSky, MOON_DIR } from './night-sky.js';
 import { PLACES, placeXZ } from './places.js';
-import { Radar } from './radar.js';
+import { Radar, RADAR_RANGES } from './radar.js';
 import { Menu, loadSettings, saveSettings, GLOBAL_KEYS, SCHEMA } from './menu.js';
 import { CARS, CAR_IDS, loadCar, GltfSandrail, setLookDaylight } from './gltf-sandrail.js';
 
@@ -372,6 +372,7 @@ async function main() {
     camera: () => setSetting('camMode', (camMode + 1) % CAM_MODES.length),
     reset: () => { const f = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat); car.reset(car.pos.x, car.pos.z, Math.atan2(f.x, f.z)); },
     hud: () => {ui.hudHidden=!ui.hudHidden;},
+    radar: () => {setSetting('radar',!settings.radar);if(settings.radar)setSetting('radarCockpit','hud');},
     help: () => setSetting('showHelp', !settings.showHelp),
     shiftUp: () => shift(true), shiftDown: () => shift(false),
     assist: () => { setSetting('steerAssist', !car.steerAssist); toast('Countersteer assist ' + (car.steerAssist ? 'on' : 'off')); },
@@ -404,7 +405,7 @@ async function main() {
   const KEY_HELP = [['throttle', 'Throttle (1200 hp, feather it)'], ['brake', 'Brake, hold when stopped to reverse'], [['left', 'right'], 'Steer'], ['handbrake', 'Handbrake'],
     ['camera', 'Camera (chase, far, cockpit, hood, side) · drag mouse to look'], ['reset', 'Flip back upright'], ['time', 'Time of day, then night'],
     ['lights', 'LED light bars and whip lights on / off'], ['teleport', 'Teleport to the next hill climb or bowl'], [['shiftDown', 'shiftUp'], 'Shift down / up (manual)'],
-    ['wheelie', 'Wheelie control'], ['assist', 'Countersteer assist'], ['name', 'Set your name'], [['hud', 'help'], 'Hide HUD / this help']];
+    ['wheelie', 'Wheelie control'], ['assist', 'Countersteer assist'], ['name', 'Set your name'], ['radar','Show or hide radar'], [['hud', 'help'], 'Hide HUD / this help']];
   function renderHelp() {
     const k = (id) => binds[id].keys.filter(Boolean).map(keyName).join(' or ') || '-';
     ui.helpRows=KEY_HELP.map(([ids,label])=>[Array.isArray(ids)?ids.map(k).join(' / '):k(ids),label]);
@@ -647,8 +648,7 @@ async function main() {
     const t = teleportPose(p);
     car.reset(t.x, t.z, t.yaw);
     for (let i = 0; i < 4; i++) { prevContact[i] = null; const r = pens[i].lift(); if (r) tlog.addOwn(r); }
-    // bring the computer sandrails along
-    for (const b of bots) { b.spawnNear(t.x, t.z, 80, 400); b.prevContact = [null, null, null, null]; for (const pn of b.pens) pn.lift(); }
+    // Existing bots keep driving from where they are; their route follows us.
     camInit = false;
     menu.toggle(false);
     toast(p.name);
@@ -715,8 +715,10 @@ async function main() {
 
   // ---------- menu (M) ----------
   status('Preparing your map...');
-  const radar = new Radar(null,terrainData);
+  const radar = new Radar(renderer,terrain,atlas);
   radar.range = settings.radarRange;
+  ui.onRadarShow=()=>{setSetting('radar',true);setSetting('radarCockpit','hud');};
+  ui.onRadarRange=step=>{const i=RADAR_RANGES.indexOf(radar.range);setSetting('radarRange',RADAR_RANGES[Math.max(0,Math.min(RADAR_RANGES.length-1,i+step))]);};
   function applySetting(key, v) {
     switch (key) {
       case 'autoTrans': car.autoTrans = v; if (v && car.gear < 1) car.gear = 1; break;
@@ -735,7 +737,7 @@ async function main() {
       case 'night': setSun(timeOfDay); setLights(!!v); break;
       case 'wind': weather.windScale = v; weather.applyWind(); break;
       case 'aiCount': setBotCount(v); if (v) botAudio.start(); break;
-      case 'car': switchCar(v); setBotCount(0); setBotCount(settings.aiCount); break;
+      case 'car': switchCar(v); break;
       case 'gravity': car.gravity = v; for (const b of bots) b.car.gravity = v; particles.gravity = v; break;
       case 'sandTex': applySandTex(v); break;
       case 'softness': car.softness = v; for (const b of bots) b.car.softness = v; break;
@@ -908,11 +910,11 @@ async function main() {
     // HUD data is drawn in the GPU overlay after the world.
     const mph=Math.abs(car.forwardSpeed)*2.23694;
     fpsAcc+=dt;fpsN++;if(fpsAcc>.5){ui.fps=Math.round(fpsN/fpsAcc);fpsAcc=0;fpsN=0;}
-    if(settings.radar&&(fpsN&1)===0){
+    if(settings.radar||radarVis.cockpit){
       _f.set(0,0,1).applyQuaternion(car.quat);
-      const blips=bots.map(b=>({x:b.car.pos.x,z:b.car.pos.z,color:'#'+new THREE.Color(b.tint).getHexString(),kind:'bot'}));
-      for(const r of remotes.values())blips.push({x:r.model.root.position.x,z:r.model.root.position.z,color:'#7cf',kind:'player'});
-      radar.draw({x:car.pos.x,z:car.pos.z,fx:_f.x,fz:_f.z},blips);
+      const blips=bots.map(b=>({x:b.car.pos.x,z:b.car.pos.z,name:b.name,kind:'bot'}));
+      for(const r of remotes.values())blips.push({x:r.model.root.position.x,z:r.model.root.position.z,name:r.name,kind:'player'});
+      radar.draw({x:car.pos.x,z:car.pos.z,fx:_f.x,fz:_f.z},blips,{hud:settings.radar&&!radarOnDash(),nav:!!radarVis.cockpit});
     }
 
     if (model.live) {

@@ -59,11 +59,20 @@ export class GameUI extends GlyphSurface {
       for(let i=0;i<28;i++)this.rect(sx+i*speedW/28,barY,speedW/28-2,7,i/28<rpm/8000?(rpm>7000?'#ff6954':C.orange):'#465047',1);
       this.text(`${Math.round(rpm/10)*10} RPM`,sx,barY+13,16,C.muted);
       if(state.radarVisible&&state.radar?.texture){
-        const d=small?124:176,rx=m,ry=h-d-(small?40:57),radar=state.radar;
-        this.rect(rx-4,ry-4,d+8,d+8,rgba(C.paper,.55),(d+8)/2);
-        this.image(radar.texture,rx,ry,d,d,{radius:d/2});
-        const n=radar.north||{x:0,y:-.8};this.text('N',rx+d*.5+n.x*d*.5,ry+d*.5+n.y*d*.5-8,16,C.orange,{align:'center'});
-        if(!small)this.text(radar.range>=1000?`${radar.range/1000} KM`:`${radar.range} M`,rx+d/2,ry+d+9,15,C.paper,{align:'center'});
+        const d=Math.min(small?132:214,h-190),rx=m,ry=h-d-(small?51:69),radar=state.radar;
+        this.radarBounds={x:rx,y:ry,w:d,h:d};
+        this.rect(rx-10,ry-36,d+20,d+78,rgba(C.ink,.88),8);
+        this.text('RADAR',rx,ry-29,17,C.paper);
+        this.text(radar.range>=1000?`${radar.range/1000} KM`:`${radar.range} M`,rx+d-28,ry-27,15,C.orange,{align:'right'});
+        this.button('radar-out','+',rx+d-22,ry-29,24,24,()=>this.onRadarRange?.(1),{quiet:true,size:18});
+        this.button('radar-in','-',rx+d-51-(small?38:47),ry-29,24,24,()=>this.onRadarRange?.(-1),{quiet:true,size:18});
+        this.image(radar.texture,rx,ry,d,d);
+        this.rect(rx+2,ry+d+9,6,6,'#ffb05c',3);
+        this.text(`${radar.counts?.bots||0} BOTS`,rx+13,ry+d+3,small?12:14,C.muted);
+        this.quad(rx+(small?72:110),ry+d+9,6,6,'#73e5f5',0,undefined,0,Math.PI/4);
+        this.text(`${radar.counts?.players||0} DRIVERS`,rx+(small?83:121),ry+d+3,small?12:14,C.muted);
+      }else{
+        this.radarBounds=null;this.button('show-radar','SHOW RADAR',m,h-80,132,36,()=>this.onRadarShow?.(),{size:16});
       }
       if(!small)this.text(this.shortcuts||'WASD  DRIVE',w/2,h-34,16,C.paper,{align:'center',maxWidth:w-440});
       if(state.showHelp&&!menu?.open){

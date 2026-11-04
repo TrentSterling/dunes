@@ -21,6 +21,7 @@ export const ACTIONS = [
   { id: 'assist', label: 'Countersteer assist on / off', group: 'Other' },
   { id: 'time', label: 'Time of day / night', group: 'Other' },
   { id: 'hud', label: 'Hide HUD', group: 'Other' },
+  { id: 'radar', label: 'Radar on / off', group: 'Other' },
   { id: 'help', label: 'Hide help', group: 'Other' },
   { id: 'name', label: 'Driver name', group: 'Other' },
 ];
@@ -41,6 +42,7 @@ export const DEFAULT_BINDINGS = {
   assist: { keys: ['KeyG', null], pad: [null, null] },
   time: { keys: ['KeyT', null], pad: [null, null] },
   hud: { keys: ['KeyH', null], pad: [null, null] },
+  radar: { keys: ['KeyB', null], pad: [null, null] },
   help: { keys: ['F1', 'Slash'], pad: [null, null] },
   name: { keys: ['KeyP', null], pad: [null, null] },
 };
@@ -105,7 +107,7 @@ export function padPressed(pads, rest) {
   return null;
 }
 
-const KEY_NAMES = { Space: 'Space', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Slash: '/', Backquote: '`', Minus: '-', Equal: '=',
+const KEY_NAMES = { Space: 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Slash: '/', Backquote: '`', Minus: '-', Equal: '=',
   BracketLeft: '[', BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', ShiftLeft: 'Left Shift', ShiftRight: 'Right Shift',
   ControlLeft: 'Left Ctrl', ControlRight: 'Right Ctrl', AltLeft: 'Left Alt', AltRight: 'Right Alt', Enter: 'Enter', Tab: 'Tab', Backspace: 'Backspace', CapsLock: 'Caps Lock' };
 export function keyName(code) {

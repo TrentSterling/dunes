@@ -9,8 +9,10 @@ The suspension and jet viewers retain their existing interfaces for this pass.
 `game-ui.js` supplies HUD layout and input hit testing. `menu.js` supplies the
 settings interface and name editor; `settings.js` retains the settings schema.
 The renderer uses an orthographic camera compatible with reversed depth.
-Offscreen radar canvases contain map geometry only; no runtime text is painted
-with Canvas2D. Authored artwork and decals on the original model stay intact.
+Since 0.5.0, the radar and cockpit maps also render entirely on the GPU, using
+the terrain's existing height textures and dune functions. They no longer use
+offscreen Canvas2D maps. Authored artwork and decals on the original model stay
+intact. See [radar and bot changes](RADAR-BOTS.md).
 
 The atlas includes 523 glyphs from Barlow Condensed Bold, distributed under the
 SIL Open Font License in `assets/fonts/OFL.txt`. The original font, generated SDF

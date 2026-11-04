@@ -4,7 +4,7 @@
 - Play: https://tront.xyz/dunes/
 - Suspension: https://tront.xyz/dunes/suspension.html
 - Kestrel: https://tront.xyz/dunes/jet.html
-- Release: 0.4.1
+- Release: 0.5.0
 
 The `Publish Dunes` GitHub Actions workflow packages `public/` and `assets/`
 and deploys the result to GitHub Pages on each push to `main`. The project uses
@@ -60,6 +60,12 @@ contexts. It checks automatic entry, live name changes, keyboard/pointer GPU
 controls, compact layout, source mirror geometry and zero runtime Canvas2D text
 calls. Set `DUNES_OUTPUT` for separate local and live evidence. It does not change
 global world settings. See [GPU UI notes](GPU-UI.md).
+
+`npm run radar:verify` uses a unique room to check GPU map pixels, rotated marker
+positions, HUD controls, a live peer, bot continuity, cockpit maps and saved
+visibility. `npm run bots:verify` runs deterministic distant/stuck/rollover and
+60-second driving scenarios against the real bot and vehicle-physics modules.
+Both accept `DUNES_URL` and `DUNES_OUTPUT`; see [radar/bot notes](RADAR-BOTS.md).
 
 The existing vehicle, jet and suspension verifiers accept `DUNES_URL` and
 `DUNES_OUTPUT` for subdirectory deployment checks and separate release receipts.

@@ -10,6 +10,7 @@ const TINTS = [0x1450c8, 0xf0a000, 0x15913a, 0x6a1bb0, 0xe8e8e8, 0x101010, 0xff5
 const FINE_HALF = 7800;
 
 const _v = new THREE.Vector3(), _q = new THREE.Quaternion();
+const _up = new THREE.Vector3(), _ground = new THREE.Vector3(), _axis = new THREE.Vector3();
 
 export class AIDriver {
   constructor(terrain, index, spec) {
@@ -27,6 +28,8 @@ export class AIDriver {
     this.flipT = 0;
     this.revSteer = 0;
     this.launchT = 0;
+    this.recoveryStableT = 0;
+    this.recoverySign = index % 2 ? 1 : -1;
     this.skill = 1; // 0.75 cruising .. 1.3 aggressive
   }
 
@@ -68,21 +71,41 @@ export class AIDriver {
   update(dt, player) {
     const c = this.car, inp = c.input, T = this.terrain;
     const fwd = _v.set(0, 0, 1).applyQuaternion(c.quat);
-    const fx = fwd.x, fz = fwd.z, upY = new THREE.Vector3(0, 1, 0).applyQuaternion(c.quat).y;
+    const fx = fwd.x, fz = fwd.z;
+    const upY = _up.set(0, 1, 0).applyQuaternion(c.quat).y;
     const v = c.forwardSpeed;
     this.modeT += dt;
+    c.recoveryTorqueB.set(0, 0, 0);
 
-    // leash: a bot that wandered too far reappears behind the player, out of sight
+    // Return by driving. Never relocate a running bot, even after a player teleport.
     const pdx = c.pos.x - player.pos.x, pdz = c.pos.z - player.pos.z;
-    if (pdx * pdx + pdz * pdz > 1600 * 1600) {
-      const pf = new THREE.Vector3(0, 0, 1).applyQuaternion(player.quat);
-      this.spawnNear(player.pos.x, player.pos.z, 350, 700, pf);
-      return;
-    }
+    if (pdx * pdx + pdz * pdz > 1000 * 1000)
+      this.target.set(clamp(player.pos.x, -FINE_HALF, FINE_HALF), 0, clamp(player.pos.z, -FINE_HALF, FINE_HALF));
 
-    // flipped or stuck on its lid: put it back on its wheels
-    if (upY < 0.35) this.flipT += dt; else this.flipT = 0;
-    if (this.flipT > 2.5) { c.reset(c.pos.x, c.pos.z, Math.atan2(fx, fz)); this.flipT = 0; this.mode = 'drive'; return; }
+    // A settled rollover gets a bounded rolling torque, not a pose reset.
+    const touching = c.hullContact > 0 || c.wheels.some(w => w.onGround);
+    if (upY < 0.35 && c.speed < 5 && touching) this.flipT += dt; else this.flipT = 0;
+    if (this.flipT > 2.5 && this.mode !== 'recover') {
+      this.mode = 'recover'; this.modeT = 0; this.recoveryStableT = 0;
+    }
+    if (this.mode === 'recover') {
+      inp.throttle = 0; inp.brake = 0; inp.steer = 0; inp.handbrake = true;
+      T.normal(c.pos.x, c.pos.z, _ground);
+      const alignment = clamp(_up.dot(_ground), -1, 1);
+      _axis.crossVectors(_up, _ground);
+      if (_axis.lengthSq() < 1e-6) _axis.set(0, 0, this.recoverySign).applyQuaternion(c.quat);
+      _axis.normalize().applyQuaternion(_q.copy(c.quat).invert());
+      const rate = Math.min(1.05, Math.acos(alignment) * 1.8), limit = c.m * Math.max(1, c.gravity) * 1.8;
+      for (const axis of ['x', 'y', 'z'])
+        c.recoveryTorqueB[axis] = clamp((_axis[axis] * rate - c.angVelB[axis]) * c.I[axis] * 18, -limit, limit);
+      if (alignment > 0.88 && c.wheels.some(w => w.onGround)) this.recoveryStableT += dt;
+      else this.recoveryStableT = 0;
+      if (this.recoveryStableT > 0.4) {
+        c.recoveryTorqueB.set(0, 0, 0); this.mode = 'drive'; this.modeT = 0; this.flipT = 0;
+        this.stuckT = 0; this.launchT = 0; this.pickTarget(player.pos.x, player.pos.z);
+      }
+      c.update(dt); return;
+    }
 
     const dx = this.target.x - c.pos.x, dz = this.target.z - c.pos.z;
     const dist = Math.hypot(dx, dz);
@@ -126,7 +149,8 @@ export class AIDriver {
       inp.throttle = 0; inp.brake = 1; inp.steer = this.revSteer;
       if (this.modeT > 3.5) {
         this.mode = 'drive'; this.modeT = 0; this.pickTarget(player.pos.x, player.pos.z);
-        if (Math.abs(v) < 0.5 && c.gear === -1) { /* didn't move: hop out of the hole */ c.reset(c.pos.x, c.pos.z, Math.atan2(fx, fz) + Math.PI / 2); }
+        // Try another line after reversing; keep the actual position and momentum.
+        this.revSteer *= -1;
       }
     }
     c.update(dt);

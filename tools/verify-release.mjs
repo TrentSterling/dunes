@@ -15,12 +15,12 @@ try{
   const release=await fetch(base+'/release.json').then(r=>r.json());assert.equal(release.commit,commit);assert.equal(release.version,pkg.version);assert.equal(release.mode,'trystero-p2p');report.release=release;
   report.checks.push('Live release version and commit match HEAD');
   const config=await fetch(base+'/js/runtime-config.js').then(r=>r.text());assert.match(config,/STATIC_HOSTING = true/);
-  const files=['public/index.html','public/js/main.js','public/js/menu.js','public/js/gpu-ui.js','public/js/game-ui.js','public/js/cockpit-display.js','public/js/gltf-sandrail.js','public/js/net-peer.js','public/vendor/trystero.js','assets/fonts/barlow-sdf.png','assets/fonts/barlow-sdf.json','assets/fonts/OFL.txt'];
+  const files=['public/index.html','public/js/main.js','public/js/menu.js','public/js/gpu-ui.js','public/js/game-ui.js','public/js/cockpit-display.js','public/js/gltf-sandrail.js','public/js/net-peer.js','public/js/radar.js','public/js/ai-driver.js','public/js/vehicle-physics.js','public/js/settings.js','public/js/controls.js','public/vendor/trystero.js','assets/fonts/barlow-sdf.png','assets/fonts/barlow-sdf.json','assets/fonts/OFL.txt'];
   const hash=b=>createHash('sha256').update(b).digest('hex');
   for(const file of files){const route=file.replace(/^public\//,'');const response=await fetch(base+'/'+route);assert.equal(response.status,200,route);
     const bytes=Buffer.from(await response.arrayBuffer()),expected=execFileSync('git',['show',`HEAD:${file}`],{maxBuffer:8*1024*1024});
     assert.equal(hash(bytes),hash(expected),route);report.hashes[route]=hash(bytes);
   }
-  report.checks.push('Live game, network, GPU UI, mirror fix and font assets match Git blobs');report.passed=true;
+  report.checks.push('Live game, network, GPU UI/radar, bot physics and font assets match Git blobs');report.passed=true;
 }catch(error){report.passed=false;report.failure=error.stack;process.exitCode=1;}
 report.verifiedUtc=new Date().toISOString();fs.writeFileSync(path.join(out,'release.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));

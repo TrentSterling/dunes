@@ -20,6 +20,9 @@ moving parts. This is a separate local repository at C:/trontstack/dunes.
   distinction in release claims. npm run multiplayer:verify uses a unique room.
 - `npm run polish:verify` tests normal URLs joining global, live rename, GPU
   controls, no DOM/Canvas2D text, compact layout, and original mirror geometry.
+- `npm run radar:verify` checks GPU radar pixels and bot continuity with a live
+  peer in a unique room. `npm run bots:verify` checks deterministic physical
+  recovery. Running bots must never call reset/spawnNear or overwrite poses.
 - Jet Game and Dustline are references; do not change their repos from this task.
 - Preserve upstream history, license, bundled models and source artwork.
 - Build through tools/vehicle_pipeline.py. Its staged inputs prevent upstream

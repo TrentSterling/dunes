@@ -21,9 +21,7 @@ export function drawDash(g,s,boost){
 export function drawNavigator(g,s,radar,trail,odometer){
   g.begin(1024,640);g.rect(0,0,1024,640,'#0e1912');
   const range=450,mw=640,mh=552,cx=320,cy=320,ppm=mw/(range*2);
-  if(radar?.reliefTexture&&s.pos){const size=radar.terrain.fineSize;
-    g.image(radar.reliefTexture,0,44,mw,mh,{uv:[(s.pos.x-range+size/2)/size,(s.pos.z-range*mh/mw+size/2)/size,2*range/size,2*range*mh/mw/size]});
-  }
+  if(radar?.navTexture&&s.pos)g.image(radar.navTexture,0,44,mw,mh);
   g.clip=[0,44,640,596];
   if(s.pos)for(let i=1;i<trail.length;i++)g.line(cx+(trail[i-1][0]-s.pos.x)*ppm,cy+(trail[i-1][1]-s.pos.z)*ppm,cx+(trail[i][0]-s.pos.x)*ppm,cy+(trail[i][1]-s.pos.z)*ppm,5,'#ffb76e');
   const heading=s.fwd?Math.atan2(s.fwd.x,-s.fwd.z):0;

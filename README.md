@@ -26,6 +26,12 @@ or use **M > Driver > Edit name**. The driver-side mirror's startup distortion
 is fixed; it came from a cockpit mesh adjustment, not a damage system.
 See [UI implementation and verification](docs/GPU-UI.md).
 
+The radar now draws its terrain, contours, compass and bot/player markers on
+the GPU. **B** toggles it; the radar's **+ / -** buttons change its range.
+Bots drive back when they wander away and roll upright through physics after a
+rollover. They keep their positions when you change cars or teleport.
+See [radar and bot verification](docs/RADAR-BOTS.md).
+
 The web release also
 includes the [suspension viewer](https://tront.xyz/dunes/suspension.html) and
 [Kestrel viewer](https://tront.xyz/dunes/jet.html). Kestrel is a model study;

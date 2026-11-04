@@ -80,6 +80,7 @@ export class SandrailPhysics {
     this.angVelB = new THREE.Vector3();      // body frame
     this.force = new THREE.Vector3();
     this.torqueW = new THREE.Vector3();
+    this.recoveryTorqueB = new THREE.Vector3(); // optional bot self-righting assist
     this.wheels = spec.wheels.map((w) => {
       const frac = w.front ? (this.cg.z + spec.wheelbase / 2) / spec.wheelbase : (spec.wheelbase / 2 - this.cg.z) / spec.wheelbase;
       const k = (this.m * G * WEIGHT * frac / 2) / w.sag;
@@ -136,6 +137,7 @@ export class SandrailPhysics {
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.quat);
     this.pos.set(x, h, z).addScaledVector(up, this.cg.y + 0.05);
     this.vel.set(0, 0, 0); this.angVelB.set(0, 0, 0);
+    this.recoveryTorqueB.set(0, 0, 0);
     this.axleOmega = 0; this.gear = 1; this.engW = this.spec.idleRpm * Math.PI / 30;
     for (const w of this.wheels) { w.omega = 0; w.comp = w.sag; w.digSink = 0; w.sink = 0; w.staticSink = 0; }
   }
@@ -520,6 +522,7 @@ export class SandrailPhysics {
     this.pos.addScaledVector(this.vel, dt);
     const qi = _q.copy(this.quat).invert();
     const tauB = this.torqueW.clone().applyQuaternion(qi);
+    tauB.add(this.recoveryTorqueB);
     const w = this.angVelB, I = this.I;
     // Euler's equations: I w' = tau - w x (I w)
     const Iw = new THREE.Vector3(I.x * w.x, I.y * w.y, I.z * w.z);

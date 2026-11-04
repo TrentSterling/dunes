@@ -1,113 +1,110 @@
-// Radar: heading-up minimap with a shaded-relief view of the dunes and a blip
-// for every computer-driven sandrail and online player.
-import { dune } from './terrain-data.js';
+// GPU radar shares the driving surface's height textures and dune functions.
+// Map shading, contours, rings, markers and compass never use Canvas2D.
 import * as THREE from 'three';
+import {TERRAIN_GLSL} from './terrain-render.js';
+import {GlyphSurface, UI_COLORS as C} from './gpu-ui.js';
+
+export const RADAR_RANGES = [300, 600, 1200, 2500];
+const BOT_COLOR = '#ffb05c', PLAYER_COLOR = '#73e5f5';
 
 export class Radar {
-  constructor(canvas, terrain) {
-    this.cv = canvas || document.createElement('canvas');
-    canvas=this.cv;canvas.width=canvas.height=384;
-    this.ctx = canvas.getContext('2d');
-    this.range = 600; // metres from centre to edge
-    this.terrain = terrain;
-    this.buildRelief();
-    this.texture=new THREE.CanvasTexture(canvas);this.texture.colorSpace=THREE.SRGBColorSpace;this.texture.flipY=false;
-    this.reliefTexture=new THREE.CanvasTexture(this.relief);this.reliefTexture.colorSpace=THREE.SRGBColorSpace;this.reliefTexture.flipY=false;
+  constructor(renderer, terrain, atlas) {
+    this.renderer=renderer; this.terrain=terrain; this.range=600;
+    this.me={x:0,z:0,fx:0,fz:-1}; this.blips=[]; this.markers=[];
+    this.drawCount=0; this.navDrawCount=0;
+    this.target=new THREE.WebGLRenderTarget(512,512,{depthBuffer:false});
+    this.navTarget=new THREE.WebGLRenderTarget(512,442,{depthBuffer:false});
+    this.texture=this.target.texture; this.navTexture=this.navTarget.texture;
+    this.overlay=new GlyphSurface(renderer,atlas,{target:this.target,capacity:4000});
+    this.navOverlay=new GlyphSurface(renderer,atlas,{target:this.navTarget,capacity:2000});
+    this.scene=new THREE.Scene();
+    this.camera=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+    this.uniforms={...terrain.uniforms,
+      radarCenter:{value:new THREE.Vector2()},radarForward:{value:new THREE.Vector2(0,-1)},
+      radarRange:{value:600},radarAspect:{value:1},radarCircular:{value:1}};
+    this.material=new THREE.ShaderMaterial({
+      uniforms:this.uniforms,depthTest:false,depthWrite:false,toneMapped:false,
+      vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`,
+      fragmentShader:`precision highp float;varying vec2 vUv;
+        uniform vec2 radarCenter,radarForward;
+        uniform float radarRange,radarAspect,radarCircular;
+        ${TERRAIN_GLSL}
+        void main(){
+          vec2 p=(vUv-.5)*2.;float radius=length(p);
+          if(radarCircular>.5&&radius>.96){gl_FragColor=vec4(0.);return;}
+          p.y*=radarAspect;
+          vec2 right=vec2(-radarForward.y,radarForward.x);
+          vec2 world=radarCenter+(right*p.x-radarForward*p.y)*radarRange/(radarCircular>.5?.94:1.);
+          vec3 dune=duneHD(world);float h=baseHeight(world)+dune.x;
+          vec2 slope=baseGrad(world)+dune.yz;
+          vec3 normal=normalize(vec3(-slope.x,1.,-slope.y));
+          float light=clamp(.43+.66*dot(normal,normalize(vec3(-.55,.75,-.35))),.1,1.);
+          vec3 color=mix(vec3(.13,.22,.18),vec3(.75,.66,.45),light);
+          float contour=abs(fract(h/10.+.5)-.5),width=max(fwidth(h/10.)*.7,.008);
+          color*=1.-.25*(1.-smoothstep(width,width*2.,contour));
+          float major=abs(fract(h/50.+.5)-.5);
+          color=mix(color,vec3(.94,.84,.62),.2*(1.-smoothstep(width*.2,width*.4,major)));
+          float alpha=radarCircular>.5?1.-smoothstep(.944,.96,radius):1.;
+          gl_FragColor=vec4(color,alpha);
+        }`,
+    });
+    this.mesh=new THREE.Mesh(new THREE.PlaneGeometry(2,2),this.material);
+    this.mesh.frustumCulled=false;this.scene.add(this.mesh);
   }
 
-  buildRelief() {
-    const T = this.terrain, N = 2048, src = T.fineN, step = src / N;
-    const c = document.createElement('canvas'); c.width = c.height = N;
-    const g = c.getContext('2d'), img = g.createImageData(N, N), d = img.data;
-    const H = T.fine, cell = T.fineCell * step;
-    // DEM plus the procedural dunes, one height per radar pixel
-    const G = new Float32Array(N * N), half = T.fineSize / 2;
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      G[j * N + i] = H[Math.min(src - 1, Math.round(j * step)) * src + Math.min(src - 1, Math.round(i * step))] + dune((i + 0.5) * cell - half, (j + 0.5) * cell - half).h;
-    }
-    const at = (i, j) => G[Math.min(N - 1, Math.max(0, j)) * N + Math.min(N - 1, Math.max(0, i))];
-    let hmin = 1e9, hmax = -1e9;
-    for (let k = 0; k < H.length; k += 97) { hmin = Math.min(hmin, H[k]); hmax = Math.max(hmax, H[k]); }
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      const dx = (at(i + 1, j) - at(i - 1, j)) / (2 * cell), dz = (at(i, j + 1) - at(i, j - 1)) / (2 * cell);
-      // light from the north-west
-      const shade = Math.max(0, Math.min(1, 0.62 + (-dx * 0.7 - dz * 0.7) * 1.6 / Math.sqrt(1 + dx * dx + dz * dz)));
-      const e = (at(i, j) - hmin) / (hmax - hmin);
-      const o = (j * N + i) * 4;
-      d[o] = (120 + 110 * e) * shade; d[o + 1] = (92 + 80 * e) * shade; d[o + 2] = (62 + 48 * e) * shade; d[o + 3] = 255;
-    }
-    g.putImageData(img, 0, 0);
-    this.relief = c; this.reliefN = N; this.reliefM = T.fineSize / N; // metres per pixel
+  draw(me,blips,{hud=true,nav=false}={}) {
+    this.me={...me};const length=Math.hypot(me.fx,me.fz)||1;
+    this.forward={x:me.fx/length,z:me.fz/length};this.blips=blips;
+    this.counts={bots:blips.filter(b=>b.kind==='bot').length,players:blips.filter(b=>b.kind==='player').length};
+    if(hud){this.renderView(this.target,this.overlay,this.forward,this.range,true);this.drawCount++;}
+    if(nav){this.renderView(this.navTarget,this.navOverlay,{x:0,z:-1},450,false);this.navDrawCount++;}
   }
 
-  // me: { x, z, fx, fz }, blips: [{ x, z, color, kind }]
-  draw(me, blips) {
-    const cv = this.cv, g = this.ctx;
-    // Keep the uploaded texture dimensions fixed, including on low-DPI screens.
-    const dpr = 2;
-    const W = cv.width, R = W / 2 - 3 * dpr, cx = W / 2, cy = W / 2;
-    const s = R / this.range; // px per metre
-    const rot = -Math.PI / 2 - Math.atan2(me.fz, me.fx); // heading-up
-    g.clearRect(0, 0, W, W);
-    g.save();
-    g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.clip();
-    g.fillStyle = '#2a1f15'; g.fillRect(0, 0, W, W);
-    g.translate(cx, cy); g.rotate(rot);
-    // relief: world (x,z) -> pixel ((x + size/2)/m, (z + size/2)/m)
-    const half = this.terrain.fineSize / 2, m = this.reliefM;
-    g.globalAlpha = 0.9;
-    g.imageSmoothingEnabled = true;
-    g.drawImage(this.relief, (-half - me.x) * s, (-half - me.z) * s, this.reliefN * m * s, this.reliefN * m * s);
-    g.globalAlpha = 1;
-    // north tick
-    g.restore();
-    g.save();
-    g.translate(cx, cy);
-    // range rings
-    g.strokeStyle = 'rgba(255,255,255,0.22)'; g.lineWidth = dpr;
-    for (const f of [0.33, 0.66]) { g.beginPath(); g.arc(0, 0, R * f, 0, Math.PI * 2); g.stroke(); }
-    g.beginPath(); g.moveTo(-R, 0); g.lineTo(R, 0); g.moveTo(0, -R); g.lineTo(0, R); g.stroke();
-    // sweep
-    const t = performance.now() / 1000 * 1.4;
-    const grad = g.createConicGradient ? g.createConicGradient(t, 0, 0) : null;
-    if (grad) {
-      grad.addColorStop(0, 'rgba(120,255,140,0.28)'); grad.addColorStop(0.12, 'rgba(120,255,140,0)'); grad.addColorStop(1, 'rgba(120,255,140,0)');
-      g.fillStyle = grad; g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); g.fill();
-    }
-    // blips
-    const cr = Math.cos(rot), sr = Math.sin(rot);
-    for (const b of blips) {
-      const dx = (b.x - me.x) * s, dz = (b.z - me.z) * s;
-      let px = dx * cr - dz * sr, py = dx * sr + dz * cr;
-      const d = Math.hypot(px, py);
-      const edge = d > R - 6 * dpr;
-      if (edge) { px *= (R - 6 * dpr) / d; py *= (R - 6 * dpr) / d; }
-      g.fillStyle = b.color; g.strokeStyle = 'rgba(0,0,0,0.8)'; g.lineWidth = 1.5 * dpr;
-      g.beginPath();
-      if (edge) {
-        // arrow on the rim pointing toward an out-of-range car
-        const a = Math.atan2(py, px);
-        g.save(); g.translate(px, py); g.rotate(a);
-        g.moveTo(5 * dpr, 0); g.lineTo(-4 * dpr, -4 * dpr); g.lineTo(-4 * dpr, 4 * dpr); g.closePath();
-        g.fill(); g.stroke(); g.restore();
-      } else if (b.kind === 'player') {
-        g.rect(px - 4.5 * dpr, py - 4.5 * dpr, 9 * dpr, 9 * dpr); g.fill(); g.stroke();
-      } else {
-        g.arc(px, py, 4.5 * dpr, 0, Math.PI * 2); g.fill(); g.stroke();
+  project(point,forward=this.forward,range=this.range,width=256,height=256,circular=true) {
+    const dx=point.x-this.me.x,dz=point.z-this.me.z,scale=width*.5/range*(circular?.94:1);
+    let x=(-forward.z*dx+forward.x*dz)*scale,y=-(forward.x*dx+forward.z*dz)*scale;
+    const angle=Math.atan2(y,x),distance=Math.hypot(dx,dz);let edge=false;
+    if(circular){const max=width*.5*.84,d=Math.hypot(x,y);if(d>max){x*=max/d;y*=max/d;edge=true;}}
+    else{const f=Math.max(Math.abs(x)/(width*.5-12),Math.abs(y)/(height*.5-12),1);edge=f>1;x/=f;y/=f;}
+    return {x:width*.5+x,y:height*.5+y,edge,angle,distance,kind:point.kind};
+  }
+
+  renderView(target,g,forward,range,circular) {
+    const r=this.renderer,previous=r.getRenderTarget(),auto=r.autoClear;
+    const view=r.getViewport(new THREE.Vector4()),scissor=r.getScissor(new THREE.Vector4()),scissorTest=r.getScissorTest();
+    const clear=r.getClearColor(new THREE.Color()),alpha=r.getClearAlpha();
+    const width=circular?256:640,height=circular?256:552;
+    this.uniforms.radarCenter.value.set(this.me.x,this.me.z);this.uniforms.radarForward.value.set(forward.x,forward.z);
+    this.uniforms.radarRange.value=range;this.uniforms.radarAspect.value=height/width;this.uniforms.radarCircular.value=circular?1:0;
+    r.setRenderTarget(target);r.setScissorTest(false);r.setClearColor(0,0);r.autoClear=false;r.clear();r.render(this.scene,this.camera);
+    r.setRenderTarget(previous);r.setViewport(view);r.setScissor(scissor);r.setScissorTest(scissorTest);r.setClearColor(clear,alpha);r.autoClear=auto;
+    g.begin(width,height);
+    if(circular){
+      for(const radius of [40,80,120])g.ring(128,128,radius,radius===120?1.6:.7,radius===120?C.paper:[.96,.93,.85,.35]);
+      g.line(18,128,238,128,.6,[.96,.93,.85,.23]);g.line(128,18,128,238,.6,[.96,.93,.85,.23]);
+      for(const [label,x,z]of [['N',0,-1],['E',1,0],['S',0,1],['W',-1,0]]){
+        const sx=(-forward.z*x+forward.x*z)*108,sy=-(forward.x*x+forward.z*z)*108;
+        g.rect(128+sx-9,128+sy-10,18,22,'#15251e',4);
+        g.text(label,128+sx,128+sy-10,16,label==='N'?C.orange:C.paper,{align:'center'});
       }
     }
-    // me: arrow at centre
-    g.fillStyle = '#ffffff'; g.strokeStyle = '#000'; g.lineWidth = 1.5 * dpr;
-    g.beginPath(); g.moveTo(0, -8 * dpr); g.lineTo(6 * dpr, 7 * dpr); g.lineTo(0, 3 * dpr); g.lineTo(-6 * dpr, 7 * dpr); g.closePath(); g.fill(); g.stroke();
-    // N marker on the rim
-    const na = rot - Math.PI / 2; // world north is -z
-    const nx = Math.cos(na) * (R - 10 * dpr), ny = Math.sin(na) * (R - 10 * dpr);
-    // The HUD's N marker is a GPU glyph; this offscreen canvas contains only map geometry.
-    this.north={x:nx/(W/2),y:ny/(W/2)};
-    g.restore();
-    // rim
-    g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 2 * dpr;
-    g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke();
-    this.texture.needsUpdate=true;
+    const markers=[];
+    for(const b of this.blips){
+      const p=this.project(b,forward,range,width,height,circular),color=b.kind==='player'?PLAYER_COLOR:BOT_COLOR;
+      markers.push({...p,name:b.name||''});
+      if(p.edge){
+        const tip=[p.x+Math.cos(p.angle)*5,p.y+Math.sin(p.angle)*5];
+        for(const side of [-1,1]){const a=p.angle+side*2.3;g.line(p.x+Math.cos(a)*5,p.y+Math.sin(a)*5,...tip,4,'#0c1712');g.line(p.x+Math.cos(a)*5,p.y+Math.sin(a)*5,...tip,2,color);}
+      }else if(b.kind==='player'){
+        g.quad(p.x-6,p.y-6,12,12,'#0c1712',0,undefined,1,Math.PI/4);g.quad(p.x-4,p.y-4,8,8,color,0,undefined,1,Math.PI/4);
+      }else{g.rect(p.x-5,p.y-5,10,10,'#0c1712',5);g.rect(p.x-3,p.y-3,6,6,color,3);}
+    }
+    if(circular){this.markers=markers;
+      for(const side of [-1,1]){g.line(128+side*7,136,128,117,5,'#0c1712');g.line(128+side*7,136,128,117,2.5,C.paper);}
+      g.rect(126,129,4,7,C.orange,2);
+    }
+    g.render({flipY:true});
   }
+
+  dispose(){this.overlay.dispose();this.navOverlay.dispose();this.mesh.geometry.dispose();this.material.dispose();}
 }
